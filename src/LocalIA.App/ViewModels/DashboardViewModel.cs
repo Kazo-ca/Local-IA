@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -6,6 +7,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using LocalIA.Core.Abstractions;
 using LocalIA.Core.Messaging;
 using LocalIA.Core.Models;
+using Microsoft.Win32;
 
 namespace LocalIA.App.ViewModels;
 
@@ -201,6 +203,37 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CopyLogs()
+    {
+        if (LogLines.Count == 0)
+        {
+            return;
+        }
+
+        Clipboard.SetText(string.Join(Environment.NewLine, LogLines));
+    }
+
+    [RelayCommand]
+    private void SaveLogs()
+    {
+        if (LogLines.Count == 0)
+        {
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Filter = "Fichiers texte (*.log)|*.log|Tous les fichiers (*.*)|*.*",
+            FileName = $"local-ia-logs_{DateTime.Now:yyyyMMdd_HHmmss}.log",
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            File.WriteAllLines(dialog.FileName, LogLines);
         }
     }
 
