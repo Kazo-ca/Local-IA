@@ -52,9 +52,19 @@ public sealed class ConfigurationAdvisor(IMoeVramCalculator moeCalculator) : ICo
     private static readonly int[] ContextCandidates = [4096, 8192, 16384, 32768, 65536, 131072];
     private const long DefaultSafetyMarginBytes = 1024L * 1024 * 1024;
 
+    /// <summary>
+    /// RAM considérée indisponible pour l'IA (système d'exploitation + applications de fond),
+    /// quelle que soit la RAM réellement libre à l'instant T — un modèle ne doit pas être jugé
+    /// "tient en RAM" ou non sur la base d'une valeur d'utilisation live qui fluctue (cache disque
+    /// Windows, etc.). Partagée avec <see cref="App.ViewModels.ConfigurationAdvisorViewModel"/>
+    /// pour que le résumé envoyé à l'IA ("Demander à l'IA") reste cohérent avec ce calcul.
+    /// </summary>
+    public const long SystemRamReserveBytes = 12L * 1024 * 1024 * 1024;
+
     public AdvisorRecommendation Evaluate(HardwareSnapshot hardware, CandidateModelFacts model, int desiredContextSize)
     {
         var availableVramBytes = Math.Max(0, hardware.TotalVramBytes - hardware.UsedVramBytes);
+        var availableRamBytes = Math.Max(0, hardware.TotalRamBytes - SystemRamReserveBytes);
         var notes = new List<string>();
 
         if (model.HasMultimodalProjector)
@@ -69,12 +79,16 @@ public sealed class ConfigurationAdvisor(IMoeVramCalculator moeCalculator) : ICo
 
         if (model.GgufMetadata is not { } metadata || metadata.BlockCount <= 0)
         {
+            double Go(long bytes) => bytes / 1024.0 / 1024.0 / 1024.0;
             return new AdvisorRecommendation
             {
-                Verdict = model.FileSizeBytes <= hardware.TotalRamBytes ? FitVerdict.RamOnlyWillBeSlow : FitVerdict.DoesNotFit,
+                Verdict = model.FileSizeBytes <= availableRamBytes ? FitVerdict.RamOnlyWillBeSlow : FitVerdict.DoesNotFit,
                 RecommendedContextSize = desiredContextSize,
                 Notes = notes,
-                Summary = "Métadonnées du modèle indisponibles ou inexploitables (architecture non reconnue) — impossible d'estimer précisément le partage GPU/CPU. Taille du fichier utilisée comme seule indication.",
+                Summary = string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "Métadonnées du modèle indisponibles ou inexploitables (architecture non reconnue) — impossible d'estimer précisément le partage GPU/CPU. Taille du fichier ({0:0.00} Go) comparée à la RAM disponible pour l'IA ({1:0.00} Go sur {2:0.00} Go, {3:0.00} Go réservés au système).",
+                    Go(model.FileSizeBytes), Go(availableRamBytes), Go(hardware.TotalRamBytes), Go(SystemRamReserveBytes)),
             };
         }
 
@@ -95,7 +109,7 @@ public sealed class ConfigurationAdvisor(IMoeVramCalculator moeCalculator) : ICo
             // au calcul dense ci-dessous, où `budget` l'a déjà soustraite) : on la retranche ici pour
             // que DetermineVerdict compare des grandeurs homogènes entre les deux branches.
             var moeHeadroomBeyondMargin = moeRecommendation.EstimatedHeadroomBytes - DefaultSafetyMarginBytes;
-            var verdict = DetermineVerdict(moeRecommendation.FitsInBudget, moeHeadroomBeyondMargin, model.FileSizeBytes, hardware.TotalRamBytes);
+            var verdict = DetermineVerdict(moeRecommendation.FitsInBudget, moeHeadroomBeyondMargin, model.FileSizeBytes, availableRamBytes);
             var summary = contextVerified
                 ? moeRecommendation.Explanation
                 : $"Même le plus petit contexte testé ({contextSize} tokens) n'est pas garanti de tenir. {moeRecommendation.Explanation}";
@@ -124,7 +138,7 @@ public sealed class ConfigurationAdvisor(IMoeVramCalculator moeCalculator) : ICo
         var contextCaveat = denseContextVerified ? "" : $" (même {denseContextSize} tokens n'est pas garanti de tenir)";
         return new AdvisorRecommendation
         {
-            Verdict = DetermineVerdict(fits, headroomBytes, model.FileSizeBytes, hardware.TotalRamBytes),
+            Verdict = DetermineVerdict(fits, headroomBytes, model.FileSizeBytes, availableRamBytes),
             RecommendedGpuLayers = gpuLayers,
             RecommendedContextSize = denseContextSize,
             Notes = notes,
@@ -162,7 +176,7 @@ public sealed class ConfigurationAdvisor(IMoeVramCalculator moeCalculator) : ICo
         return (best, verified);
     }
 
-    private static FitVerdict DetermineVerdict(bool fitsInVram, long headroomBytes, long fileSizeBytes, long totalRamBytes)
+    private static FitVerdict DetermineVerdict(bool fitsInVram, long headroomBytes, long fileSizeBytes, long availableRamBytes)
     {
         if (fitsInVram)
         {
@@ -172,6 +186,6 @@ public sealed class ConfigurationAdvisor(IMoeVramCalculator moeCalculator) : ICo
             return headroomBytes >= DefaultSafetyMarginBytes ? FitVerdict.ComfortableFit : FitVerdict.TightFit;
         }
 
-        return fileSizeBytes < totalRamBytes ? FitVerdict.RamOnlyWillBeSlow : FitVerdict.DoesNotFit;
+        return fileSizeBytes < availableRamBytes ? FitVerdict.RamOnlyWillBeSlow : FitVerdict.DoesNotFit;
     }
 }

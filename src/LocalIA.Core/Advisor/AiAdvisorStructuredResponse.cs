@@ -25,7 +25,11 @@ public static class AdvisorPromptBuilder
         Tu donnes un deuxième avis sur une recommandation déjà calculée par un algorithme
         déterministe pour configurer un modèle d'IA local (Ollama/llama.cpp) sur le matériel
         de l'utilisateur. Traite les chiffres fournis comme fiables (ne les recalcule pas).
-        Dis clairement si tu es d'accord ou non, et pourquoi. Réponds en français, en 3 à 5
+        Le matériel combine VRAM (GPU) et RAM (CPU) : llama.cpp peut répartir un modèle entre les
+        deux (couches d'attention/denses en VRAM, experts MoE ou couches excédentaires en RAM)
+        plutôt que devoir tenir entièrement dans l'un ou l'autre — raisonne sur la capacité totale
+        du matériel (VRAM + RAM disponibles ensemble), pas sur un choix binaire "tient en VRAM ou
+        pas". Dis clairement si tu es d'accord ou non, et pourquoi. Réponds en français, en 3 à 5
         phrases maximum, de façon concrète et actionnable.
         """;
 

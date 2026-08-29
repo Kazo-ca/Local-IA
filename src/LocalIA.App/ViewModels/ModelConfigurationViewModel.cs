@@ -68,6 +68,16 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
         _llamaCppProcessManager = llamaCppProcessManager;
         _configRepository = configRepository;
         _ggufReader = ggufReader;
+
+        // "Appliquer" dans le panneau Conseiller mute Tier.Settings directement (pas via un
+        // SettingsFieldDescriptor existant) : Rebuild() régénère les champs affichés avec les
+        // nouvelles valeurs, et SettingsChanged marque le profil comme non enregistré, exactement
+        // comme une édition manuelle dans les onglets ci-dessus.
+        Advisor.RecommendationApplied += () =>
+        {
+            Rebuild();
+            SettingsChanged?.Invoke();
+        };
     }
 
     public void LoadTier(ModelTier newTier)

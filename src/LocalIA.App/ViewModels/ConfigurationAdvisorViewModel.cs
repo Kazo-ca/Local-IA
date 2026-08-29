@@ -24,6 +24,37 @@ public sealed partial class ConfigurationAdvisorViewModel : ObservableObject
     [ObservableProperty]
     private AdvisorRecommendation? recommendation;
 
+    /// <summary>Levé après application d'une recommandation aux réglages du palier —
+    /// ModelConfigurationViewModel s'y abonne pour rafraîchir ses onglets et marquer IsDirty.</summary>
+    public event Action? RecommendationApplied;
+
+    partial void OnRecommendationChanged(AdvisorRecommendation? value) => OnPropertyChanged(nameof(RecommendedParamsText));
+
+    /// <summary>Résumé des valeurs concrètes que "Appliquer" écrirait dans le palier — null tant
+    /// qu'aucune évaluation n'a encore eu lieu.</summary>
+    public string? RecommendedParamsText
+    {
+        get
+        {
+            if (Recommendation is not { } rec)
+            {
+                return null;
+            }
+
+            var parts = new List<string> { $"Contexte : {rec.RecommendedContextSize}" };
+            if (rec.MoeRecommendation is { } moe)
+            {
+                parts.Add($"Experts sur CPU : {moe.RecommendedNCpuMoe}/{moe.TotalMoeLayers}");
+            }
+            else if (rec.RecommendedGpuLayers is { } gpuLayers)
+            {
+                parts.Add($"Couches GPU : {gpuLayers}");
+            }
+
+            return string.Join("   ·   ", parts);
+        }
+    }
+
     [ObservableProperty]
     private bool isEvaluating;
 
@@ -99,6 +130,34 @@ public sealed partial class ConfigurationAdvisorViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ApplyRecommendation()
+    {
+        if (Recommendation is not { } rec || _tier is null)
+        {
+            return;
+        }
+
+        _tier.Settings.ContextMemory.ContextSize = rec.RecommendedContextSize;
+
+        if (rec.MoeRecommendation is { } moe)
+        {
+            // Mêmes règles que MoeViewModel.ApplyRecommendation : les N premières couches d'experts
+            // (par index croissant, déjà l'ordre de MoeLayersInOrder) passent en RAM CPU.
+            _tier.Settings.MoeOffload.CpuLayerIndices = moe.MoeLayersInOrder
+                .Take(moe.RecommendedNCpuMoe)
+                .Select(l => l.Index)
+                .ToHashSet();
+        }
+        else if (rec.RecommendedGpuLayers is { } gpuLayers)
+        {
+            _tier.Settings.GpuOffload.GpuLayers = new GpuLayerSpec { Mode = GpuLayerMode.Explicit, ExplicitCount = gpuLayers };
+        }
+
+        StatusMessage = "Recommandation appliquée aux réglages du palier — pense à Enregistrer.";
+        RecommendationApplied?.Invoke();
+    }
+
     private async Task<CandidateModelFacts> BuildCandidateFactsAsync(ModelTier tier)
     {
         GgufModelMetadata? metadata = null;
@@ -166,7 +225,11 @@ public sealed partial class ConfigurationAdvisorViewModel : ObservableObject
             }
 
             var hardware = _hardwareMonitor.Current;
-            var hardwareSummary = $"GPU {hardware.GpuName}, VRAM {FormatGiB(hardware.TotalVramBytes)} (utilisée : {FormatGiB(hardware.UsedVramBytes)}), RAM {FormatGiB(hardware.TotalRamBytes)}.";
+            var availableVramBytes = Math.Max(0, hardware.TotalVramBytes - hardware.UsedVramBytes);
+            var availableRamBytes = Math.Max(0, hardware.TotalRamBytes - ConfigurationAdvisor.SystemRamReserveBytes);
+            var hardwareSummary =
+                $"GPU {hardware.GpuName}, VRAM {FormatGiB(hardware.TotalVramBytes)} (utilisée : {FormatGiB(hardware.UsedVramBytes)}, disponible : {FormatGiB(availableVramBytes)}). " +
+                $"RAM {FormatGiB(hardware.TotalRamBytes)} au total ({FormatGiB(ConfigurationAdvisor.SystemRamReserveBytes)} réservés au système, {FormatGiB(availableRamBytes)} disponibles pour l'IA en permanence, indépendamment de l'utilisation RAM constatée à l'instant présent).";
             var modelKind = Recommendation.MoeRecommendation is not null ? "MoE" : "dense";
             var modelSummary = $"{_tier.Label} ({modelKind}, quantification {_tier.LlamaCppSource?.QuantHint ?? "inconnue"}).";
             var verdictText = $"{Recommendation.Verdict} — {Recommendation.Summary}";

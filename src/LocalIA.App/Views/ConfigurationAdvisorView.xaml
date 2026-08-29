@@ -31,6 +31,11 @@
                         <TextBlock Text="{Binding Recommendation.Verdict, Converter={StaticResource FitVerdictToLabelConverter}}" FontWeight="SemiBold" />
                     </StackPanel>
                     <TextBlock Text="{Binding Recommendation.Summary}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                Visibility="{Binding RecommendedParamsText, Converter={StaticResource NullToCollapsedConverter}}">
+                        <TextBlock Text="{Binding RecommendedParamsText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Button Content="Appliquer au palier" Command="{Binding ApplyRecommendationCommand}" Padding="8,3" />
+                    </StackPanel>
                     <ItemsControl ItemsSource="{Binding Recommendation.Notes}" Margin="0,6,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
