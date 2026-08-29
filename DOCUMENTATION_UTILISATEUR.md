@@ -1,3 +1,194 @@
+*[English](#english) below · [Version française](#francais) plus bas*
+
+<a id="english"></a>
+# LOCAL-IA Desktop Manager — User Guide
+
+A desktop application (.NET 10 / WPF) for managing your local LLMs (Ollama and llama.cpp) without
+touching the command line. It replaces day-to-day use of the PowerShell toolkit
+(`Run-LocalIA.ps1` and the scripts in the `scripts/` folder), which remains intact and functional
+as a fallback — the two can coexist, since the app never modifies `config/config.json` or the
+existing Modelfiles.
+
+Target machine: RTX 3060 (12 GB VRAM), Ryzen 7 3700X, 64 GB RAM, models on `E:\ollama_models` and
+`E:\llama_models`.
+
+---
+
+## Launching the Application
+
+From `src/`:
+
+```bash
+dotnet run --project LocalIA.App/LocalIA.App.csproj
+```
+
+On the very first launch (before any save), the app automatically imports the 3 profiles and 6
+tiers from the existing `config/config.json` — it's a copy, not a link: anything you change
+afterward in the app never affects the legacy file. Your app-specific configuration then lives in
+`%APPDATA%\LocalIA\app-config.json` (plus a `.backup` safety copy next to it, used automatically
+if the main file becomes unreadable).
+
+---
+
+## Tour of the Screens
+
+The window has a left-hand navigation bar with 7 sections.
+
+### Dashboard
+
+Real-time overview: CPU/RAM usage, GPU/VRAM/temperature (refreshed every 1 to 2.5 seconds
+depending on the metric), Ollama and llama.cpp status (Stopped / Starting / Running / Crashed),
+models currently loaded in memory, and a live log stream.
+
+Action buttons: Start Ollama, Unload Models, Stop Ollama, Stop llama.cpp, Stop All, and a checkbox
+for automatic startup with Windows.
+
+The app detects an engine already running outside of it (for example via the PowerShell scripts,
+or started manually) and attaches to it instead of launching a second instance.
+
+### Profiles / Models
+
+Manages profiles (thematic groupings, e.g. "C# & .NET Expert") and their tiers (a configured
+model, e.g. "max_accuracy"). Create/delete a profile or a tier, choose the engine (Ollama or
+llama.cpp) and the base model, and set the system prompt.
+
+Ollama-specific actions: download the base model (`ollama pull`), create/update the custom model
+with your settings (`ollama create`), and set it as active.
+
+The **Import from config/config.json** button re-reads the legacy toolkit on demand — useful if
+you edit a Modelfile on the PowerShell side and want to pull those changes into the app.
+
+An orange dot (**● unsaved changes**) appears as soon as a change hasn't been saved yet — click
+**Save** to write it to disk. Closing the app with pending changes shows a prompt to save,
+discard, or cancel the close.
+
+### Chat / Test
+
+Multi-turn conversation with token-by-token streaming, to test a model directly inside the app.
+Choose the engine and model, type your message (Enter sends, Shift+Enter inserts a line break).
+Performance statistics (tokens/s) are shown after each response. Generation can be cancelled
+mid-stream.
+
+### Model Configuration
+
+The densest screen: nearly the entire Ollama and llama.cpp parameter surface (~150 flags),
+organized into tabs — Sampling, Context & Memory, GPU & Offload, Networking & Server, Multimodal,
+Speculative Decoding, Reasoning, Adapters, Advanced/Raw.
+
+Each field has a "set/inherited" checkbox: checked = the value is sent to the engine; unchecked =
+the engine uses its own default. A field not supported by the currently selected engine appears
+greyed out with a tooltip. A preview at the bottom of the screen shows exactly the CLI arguments
+(llama.cpp) or the JSON body (Ollama) that would be generated.
+
+On the **GPU & Offload** tab, for a llama.cpp tier with a configured model source (local file or
+Hugging Face repo), the **Start llama.cpp with this configuration** button actually launches
+`llama-server.exe` with all of these settings — see the Limitations section below for the
+prerequisite setup. A llama.cpp tier created by hand from Profiles (the + Add button) has **no**
+model source until one is attached to it via the Hugging Face Search screen (the only place that
+fills in a local file or a Hugging Face repo for a tier) — otherwise the button will clearly say
+so.
+
+At the bottom of the screen, the **Configuration Advisor** panel (see below) gives an automatic
+opinion on how well the chosen model fits your hardware.
+
+### MoE
+
+A page dedicated to Mixture-of-Experts models (e.g. Qwen3.6-A3B, DeepSeek-Coder-V2-Lite). Shows
+how much VRAM is available, reads the GGUF file's metadata (number of expert layers, size of
+each), and calculates how many layers can stay in VRAM before some must be offloaded to CPU.
+
+Simple mode: a slider that picks a contiguous prefix of layers to offload. Advanced mode: a grid
+with one row per actual layer, with an individual GPU/CPU toggle. The app automatically generates
+either `--n-cpu-moe N` or `--override-tensor` patterns depending on your selection.
+
+### Hugging Face Search
+
+Search for GGUF models on Hugging Face, with a list of the available quantizations and their
+size. Actions: **+ Ollama** (downloads via `ollama pull hf.co/...`), **+ llama.cpp** (lets
+`llama-server.exe` resolve/download it itself on first launch), **Download now** (fetches the file
+right away — useful so the MoE page can read its metadata before the first launch).
+
+When a repo contains companion files — a multimodal projector (`mmproj-*.gguf`) or a draft model
+for speculative decoding (`mtp-*.gguf`, `draft-*.gguf`) — they appear in a separate section with
+an **Attach** button, which automatically links them to the right tier setting (multimodal or
+speculative decoding).
+
+Models added here land in an automatically-created "Hugging Face" profile.
+
+### Settings
+
+**Not implemented yet** — the screen shows a placeholder message. Two global settings therefore
+have no UI for now and must be edited directly in `%APPDATA%\LocalIA\app-config.json` (close the
+app before editing, by hand or in a text editor):
+
+```json
+{
+  "LlamaCppServer": {
+    "ExecutablePath": "C:\\Users\\clefw\\repos\\source\\local-ia\\bin\\llama-cpp\\llama-server.exe"
+  },
+  "Preferences": {
+    "HuggingFaceApiToken": "hf_..."
+  }
+}
+```
+
+Watch the exact casing (capitalized first letter of each word): the file doesn't use the usual
+JSON camelCase, and a misspelled key is silently ignored with no error. `ExecutablePath` is
+**required** for the "Start llama.cpp" button on the Model Configuration screen to work.
+`HuggingFaceApiToken` is only needed for private/rate-limited Hugging Face repos.
+
+---
+
+## The Configuration Advisor
+
+A panel built into the bottom of the "Model Configuration" screen. Two levels:
+
+- **Instant calculation** (Recalculate button): no network call, based on already-read GGUF
+  metadata and detected hardware. Verdict: Comfortable fit / Tight fit / Will fit in RAM (slower) /
+  Doesn't fit. Recommends a number of GPU layers (dense model) or a MoE placement, and the largest
+  context size that fits.
+- **Ask the AI** (optional): sends a summary of the calculation to an already-installed Ollama
+  model (the smallest one by default, so it doesn't compete for VRAM) for a second opinion in
+  natural language. Requires Ollama to be running. Never applies a suggestion automatically — it's
+  always up to you to change the settings if you agree.
+
+If the source Hugging Face repo offers a multimodal projector or a draft model, the advisor
+mentions it in its remarks.
+
+---
+
+## Known Limitations
+
+- **Settings screen not implemented** — see above for the required manual configuration.
+- **LoRA adapters**: the field exists for both engines, but only has a real effect for llama.cpp
+  (`--lora`). Ollama expects a blob-upload mechanism that isn't implemented here yet — the field is
+  greyed out on the Ollama side to avoid any confusion.
+- **Custom host/port for llama.cpp**: if you change `--host`/`--port` in a tier's networking
+  settings, the post-launch "is the server ready" check still targets the default address
+  (`127.0.0.1:8080`) — the server starts correctly, but the app may wrongly show "Crashed" in this
+  specific case. Leave host/port at their defaults unless you have a specific need.
+- **Only one llama.cpp model at a time** — starting a new llama.cpp tier while another is running
+  intentionally fails (so an ongoing generation is never cut off); stop the active instance from
+  the Dashboard first.
+- **Multi-file (sharded) GGUF**: if a model is split across several `.gguf` files (rare, mostly for
+  very large models), metadata reading fails with an explicit message rather than silently
+  returning a partial, incorrect result.
+
+---
+
+## Quick Troubleshooting
+
+| Symptom | What to check |
+|---|---|
+| "Start llama.cpp" says "Path not configured" | Set `ExecutablePath` in `app-config.json` (see Settings above) |
+| "Start Ollama" does nothing / errors out | Check that `ollama` is on the system PATH |
+| A numeric field clears itself when typing a comma | Fixed — now accepts either a period or a comma |
+| Nothing happens when searching on Hugging Face | Check your network connection; an error message should otherwise appear — report it if it doesn't |
+| Changes lost after closing | The orange "unsaved changes" dot and the close-time prompt now warn you about this — click Save before closing if you see it |
+
+---
+
+<a id="francais"></a>
 # LOCAL-IA Desktop Manager — Guide utilisateur
 
 Application de bureau (.NET 10 / WPF) pour gérer tes modèles LLM locaux (Ollama et llama.cpp)
