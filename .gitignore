@@ -1,0 +1,18 @@
+# Build output (.NET) — couvre aussi bin/llama-cpp (binaires llama.cpp tiers, ~1.1 Go)
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.userosscache
+*.suo
+
+# Visual Studio / Rider
+.vs/
+.idea/
+
+# Cache de téléchargement du toolkit legacy
+/scratch/
+
+# Etat Claude Code local (permissions/machine-specifiques)
+.claude/settings.local.json

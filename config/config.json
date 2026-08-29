@@ -1,0 +1,72 @@
+{
+  "storage": {
+    "modelsPath": "E:\\ollama_models"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 11434,
+    "keepAlive": "60m"
+  },
+  "profiles": {
+    "csharp": {
+      "name": "C# & .NET Expert",
+      "description": "Optimisé pour le développement C# moderne (.NET 8/9, EF Core, LINQ, Clean Architecture, Async)",
+      "tiers": {
+        "max_accuracy": {
+          "base_model": "qwen2.5-coder:32b-instruct",
+          "custom_model_name": "local-ia-csharp:32b",
+          "modelfile": "config/Modelfiles/Modelfile.csharp-32b",
+          "vram_offload": "Hybride (12GB VRAM + RAM)",
+          "tool_calling": true
+        },
+        "fast_vram": {
+          "base_model": "qwen2.5-coder:14b-instruct",
+          "custom_model_name": "local-ia-csharp:14b",
+          "modelfile": "config/Modelfiles/Modelfile.csharp-14b",
+          "vram_offload": "100% VRAM (12GB)",
+          "tool_calling": true
+        }
+      }
+    },
+    "deep_reasoning": {
+      "name": "Deep Reasoning (Maths & Quantum Physics)",
+      "description": "Optimisé pour la déduction rigoureuse, les mathématiques formelles, la physique théorique/quantique avec support complet des outils",
+      "tiers": {
+        "max_accuracy": {
+          "base_model": "qwq:32b",
+          "custom_model_name": "local-ia-deep-reasoning:32b",
+          "modelfile": "config/Modelfiles/Modelfile.deep-reasoning-32b",
+          "vram_offload": "Hybride (12GB VRAM + RAM)",
+          "tool_calling": true
+        },
+        "fast_vram": {
+          "base_model": "qwen2.5:14b-instruct",
+          "custom_model_name": "local-ia-deep-reasoning:14b",
+          "modelfile": "config/Modelfiles/Modelfile.deep-reasoning-14b",
+          "vram_offload": "100% VRAM (12GB)",
+          "tool_calling": true
+        }
+      }
+    },
+    "agent_tools": {
+      "name": "Agent & Tool Calling",
+      "description": "Optimisé pour l'exécution d'outils (JSON Schema, Function Calling) et l'orchestration multi-agents",
+      "tiers": {
+        "max_accuracy": {
+          "base_model": "qwen2.5:32b-instruct",
+          "custom_model_name": "local-ia-agent-tools:32b",
+          "modelfile": "config/Modelfiles/Modelfile.agent-tools-32b",
+          "vram_offload": "Hybride (12GB VRAM + RAM)",
+          "tool_calling": true
+        },
+        "fast_vram": {
+          "base_model": "qwen2.5:14b-instruct",
+          "custom_model_name": "local-ia-agent-tools:14b",
+          "modelfile": "config/Modelfiles/Modelfile.agent-tools-14b",
+          "vram_offload": "100% VRAM (12GB)",
+          "tool_calling": true
+        }
+      }
+    }
+  }
+}

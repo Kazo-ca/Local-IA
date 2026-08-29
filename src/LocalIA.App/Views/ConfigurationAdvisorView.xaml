@@ -1,0 +1,64 @@
+<UserControl x:Class="LocalIA.App.Views.ConfigurationAdvisorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="260" d:DesignWidth="1000">
+    <Border Background="#FBFBFB" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="6" Padding="14">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <TextBlock Text="Conseiller de configuration" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <Button Content="Recalculer" Command="{Binding EvaluateCommand}" Padding="8,3" Margin="0,0,8,0" />
+                <ComboBox Width="220" ItemsSource="{Binding AvailableAdvisorModels}" SelectedItem="{Binding SelectedAdvisorModel}"
+                          Margin="0,0,8,0" ToolTip="Modèle Ollama utilisé pour le second avis (par défaut : le plus petit installé)" />
+                <Button Content="Demander à l'IA" Command="{Binding AskAiCommand}" Padding="8,3" />
+                <TextBlock Text="Analyse en cours…" Foreground="Gray" VerticalAlignment="Center" Margin="12,0,0,0"
+                           Visibility="{Binding IsEvaluating, Converter={StaticResource BoolToVisibleConverter}}" />
+                <TextBlock Text="L'IA réfléchit…" Foreground="Gray" VerticalAlignment="Center" Margin="12,0,0,0"
+                           Visibility="{Binding IsAskingAi, Converter={StaticResource BoolToVisibleConverter}}" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding StatusMessage}" Foreground="DarkOrange" TextWrapping="Wrap" Margin="0,0,0,8"
+                       Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
+
+            <Border Background="White" BorderBrush="#EEEEEE" BorderThickness="1" CornerRadius="4" Padding="10"
+                    Visibility="{Binding Recommendation, Converter={StaticResource NullToCollapsedConverter}}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                 Fill="{Binding Recommendation.Verdict, Converter={StaticResource FitVerdictToBrushConverter}}" />
+                        <TextBlock Text="{Binding Recommendation.Verdict, Converter={StaticResource FitVerdictToLabelConverter}}" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Recommendation.Summary}" TextWrapping="Wrap" />
+                    <ItemsControl ItemsSource="{Binding Recommendation.Notes}" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="11" Foreground="#555555" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#F3F6FF" BorderBrush="#D6E0F5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,10,0,0"
+                    Visibility="{Binding AiJustification, Converter={StaticResource NullToCollapsedConverter}}">
+                <StackPanel>
+                    <TextBlock Margin="0,0,0,4">
+                        <Run Text="Avis de l'IA" FontWeight="SemiBold" />
+                        <Run Text=" — " />
+                        <Run Text="{Binding AiAgreement, Mode=OneWay}" FontStyle="Italic" />
+                        <Run Text=" · risque : " />
+                        <Run Text="{Binding AiRiskLevel, Mode=OneWay}" FontStyle="Italic" />
+                    </TextBlock>
+                    <TextBlock Text="{Binding AiJustification}" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,6,0,0" FontStyle="Italic"
+                               Visibility="{Binding AiAlternativeSuggestion, Converter={StaticResource NullToCollapsedConverter}}">
+                        <Run Text="Suggestion alternative : " FontWeight="SemiBold" FontStyle="Normal" />
+                        <Run Text="{Binding AiAlternativeSuggestion, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

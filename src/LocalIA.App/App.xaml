@@ -1,0 +1,49 @@
+<Application x:Class="LocalIA.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:LocalIA.App.Converters"
+             xmlns:vm="clr-namespace:LocalIA.App.ViewModels"
+             xmlns:views="clr-namespace:LocalIA.App.Views">
+    <Application.Resources>
+        <converters:PercentToBrushConverter x:Key="PercentToBrushConverter" />
+        <converters:EngineStatusToBrushConverter x:Key="EngineStatusToBrushConverter" />
+        <converters:EngineStatusToLabelConverter x:Key="EngineStatusToLabelConverter" />
+        <converters:EngineKindToLabelConverter x:Key="EngineKindToLabelConverter" />
+        <converters:BytesToGigabytesConverter x:Key="BytesToGigabytesConverter" />
+        <converters:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter" />
+        <converters:CountToVisibleConverter x:Key="CountToVisibleConverter" />
+        <converters:ChatRoleToAlignmentConverter x:Key="ChatRoleToAlignmentConverter" />
+        <converters:ChatRoleToBrushConverter x:Key="ChatRoleToBrushConverter" />
+        <converters:ChatRoleToForegroundConverter x:Key="ChatRoleToForegroundConverter" />
+        <converters:BoolToVisibleConverter x:Key="BoolToVisibleConverter" />
+        <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
+        <converters:InverseBoolToVisibleConverter x:Key="InverseBoolToVisibleConverter" />
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:BoolToFitBrushConverter x:Key="BoolToFitBrushConverter" />
+        <converters:NullToCollapsedConverter x:Key="NullToCollapsedConverter" />
+        <converters:FitVerdictToBrushConverter x:Key="FitVerdictToBrushConverter" />
+        <converters:FitVerdictToLabelConverter x:Key="FitVerdictToLabelConverter" />
+
+        <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+            <views:DashboardView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ChatViewModel}">
+            <views:ChatView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProfilesViewModel}">
+            <views:ProfilesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ModelConfigurationViewModel}">
+            <views:ModelConfigurationView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MoeViewModel}">
+            <views:MoeView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:HuggingFaceSearchViewModel}">
+            <views:HuggingFaceSearchView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
+            <views:PlaceholderView />
+        </DataTemplate>
+    </Application.Resources>
+</Application>

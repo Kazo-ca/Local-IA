@@ -1,0 +1,117 @@
+<UserControl x:Class="LocalIA.App.Views.ProfilesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="1050">
+    <UserControl.Resources>
+        <Style x:Key="ColumnHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,8,0,2" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="Gray" />
+        </Style>
+        <Style x:Key="SmallButton" TargetType="Button">
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="Profils / Modèles" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0" />
+            <Button Content="Enregistrer" Command="{Binding SaveCommand}" Padding="12,6" Margin="0,0,8,0" />
+            <Button Content="Importer depuis config/config.json" Command="{Binding ImportLegacyCommand}" Padding="12,6" />
+            <TextBlock Text="● modifications non enregistrées" Foreground="DarkOrange" VerticalAlignment="Center" Margin="12,0,0,0"
+                       Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibleConverter}}" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Profils -->
+            <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                <TextBlock DockPanel.Dock="Top" Text="Profils" Style="{StaticResource ColumnHeader}" />
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="+ Ajouter" Style="{StaticResource SmallButton}" Command="{Binding AddProfileCommand}" />
+                    <Button Content="Supprimer" Style="{StaticResource SmallButton}" Command="{Binding RemoveProfileCommand}" />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" DisplayMemberPath="Name" />
+            </DockPanel>
+
+            <!-- Paliers (tiers) -->
+            <DockPanel Grid.Column="1" Margin="0,0,12,0">
+                <TextBlock DockPanel.Dock="Top" Text="Paliers" Style="{StaticResource ColumnHeader}" />
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="+ Ajouter" Style="{StaticResource SmallButton}" Command="{Binding AddTierCommand}" />
+                    <Button Content="Supprimer" Style="{StaticResource SmallButton}" Command="{Binding RemoveTierCommand}" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8"
+                            Visibility="{Binding SelectedProfile, Converter={StaticResource NullToCollapsedConverter}}">
+                    <TextBlock Text="Nom du profil" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SelectedProfile.Name, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Text="Description" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SelectedProfile.Description, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="50" />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding SelectedProfile.Tiers}" SelectedItem="{Binding SelectedTier}" DisplayMemberPath="Label" />
+            </DockPanel>
+
+            <!-- Détail du palier sélectionné -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"
+                          Visibility="{Binding SelectedTier, Converter={StaticResource NullToCollapsedConverter}}">
+                <StackPanel Margin="4,0,0,0">
+                    <TextBlock Text="Détail du palier" Style="{StaticResource ColumnHeader}" />
+
+                    <TextBlock Text="Étiquette" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SelectedTier.Label, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Moteur" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding EngineOptions}" SelectedItem="{Binding SelectedTier.Engine}" Width="160" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EngineKindToLabelConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="Modèle de base Ollama (ex. qwen2.5-coder:32b-instruct)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SelectedTier.OllamaBaseModel, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Nom du modèle personnalisé (ex. local-ia-csharp:32b)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SelectedTier.OllamaCustomModelName, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Invite système" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SelectedTier.SystemPrompt, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="100" VerticalScrollBarVisibility="Auto" />
+
+                    <Button Content="Configurer tous les paramètres (Ollama / llama.cpp) →" Command="{Binding OpenModelConfigurationCommand}"
+                            HorizontalAlignment="Left" Padding="10,6" Margin="0,12,0,0" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <Button Content="Télécharger le modèle de base" Command="{Binding PullBaseModelCommand}" Padding="10,6" Margin="0,0,8,0" />
+                        <Button Content="Créer / mettre à jour" Command="{Binding BuildCustomModelCommand}" Padding="10,6" Margin="0,0,8,0" />
+                        <Button Content="Définir comme actif" Command="{Binding SetActiveCommand}" Padding="10,6" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Foreground="Gray" Margin="0,10,0,0"
+                   Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
+    </Grid>
+</UserControl>

@@ -1,0 +1,202 @@
+<UserControl x:Class="LocalIA.App.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="950">
+    <UserControl.Resources>
+        <Style x:Key="GaugeLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="Gray" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style x:Key="GaugeValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DDDDDD" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,12,12" />
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="Background" Value="#EFEFEF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#F6D5D5" />
+            <Setter Property="Foreground" Value="#7A1F1F" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+        <StackPanel>
+            <TextBlock Text="Tableau de bord" FontSize="24" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock Foreground="Gray" Margin="0,0,0,16">
+                <Run Text="Dernière mise à jour : " />
+                <Run Text="{Binding LastRefreshedAt, StringFormat={}{0:HH:mm:ss}}" />
+            </TextBlock>
+
+            <!-- Jauges matérielles -->
+            <UniformGrid Columns="3">
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="CPU" Style="{StaticResource GaugeLabel}" />
+                        <TextBlock Text="{Binding CpuName}" FontSize="11" Foreground="DarkGray" Margin="0,0,0,8" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding CpuLoadPercent, StringFormat={}{0:0}%}" Style="{StaticResource GaugeValue}" />
+                        <ProgressBar Value="{Binding CpuLoadPercent, Mode=OneWay}" Minimum="0" Maximum="100" Height="8" Margin="0,8,0,0"
+                                     Foreground="{Binding CpuLoadPercent, Converter={StaticResource PercentToBrushConverter}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="RAM" Style="{StaticResource GaugeLabel}" />
+                        <TextBlock Margin="0,0,0,8" FontSize="11" Foreground="DarkGray">
+                            <Run Text="{Binding UsedRamBytes, Converter={StaticResource BytesToGigabytesConverter}, Mode=OneWay}" />
+                            <Run Text=" / " />
+                            <Run Text="{Binding TotalRamBytes, Converter={StaticResource BytesToGigabytesConverter}, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Text="{Binding RamLoadPercent, StringFormat={}{0:0}%}" Style="{StaticResource GaugeValue}" />
+                        <ProgressBar Value="{Binding RamLoadPercent, Mode=OneWay}" Minimum="0" Maximum="100" Height="8" Margin="0,8,0,0"
+                                     Foreground="{Binding RamLoadPercent, Converter={StaticResource PercentToBrushConverter}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="GPU / VRAM" Style="{StaticResource GaugeLabel}" />
+                        <TextBlock FontSize="11" Foreground="DarkGray" Margin="0,0,0,8" TextWrapping="Wrap">
+                            <Run Text="{Binding GpuName}" />
+                            <Run Text=" · " />
+                            <Run Text="{Binding GpuTemperatureCelsius, StringFormat={}{0:0}°C}" />
+                            <Run Text=" · charge " />
+                            <Run Text="{Binding GpuLoadPercent, StringFormat={}{0:0}%}" />
+                        </TextBlock>
+                        <TextBlock Text="{Binding VramLoadPercent, StringFormat={}{0:0}%}" Style="{StaticResource GaugeValue}" />
+                        <ProgressBar Value="{Binding VramLoadPercent, Mode=OneWay}" Minimum="0" Maximum="100" Height="8" Margin="0,8,0,0"
+                                     Foreground="{Binding VramLoadPercent, Converter={StaticResource PercentToBrushConverter}}" />
+                        <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="DarkGray">
+                            <Run Text="{Binding UsedVramBytes, Converter={StaticResource BytesToGigabytesConverter}, Mode=OneWay}" />
+                            <Run Text=" / " />
+                            <Run Text="{Binding TotalVramBytes, Converter={StaticResource BytesToGigabytesConverter}, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Etat des moteurs -->
+            <TextBlock Text="Moteurs d'inférence" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <UniformGrid Columns="2">
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="12" Height="12" Margin="0,0,10,0" VerticalAlignment="Center"
+                                 Fill="{Binding OllamaStatus, Converter={StaticResource EngineStatusToBrushConverter}}" />
+                        <StackPanel>
+                            <TextBlock Text="Ollama" FontWeight="SemiBold" />
+                            <TextBlock FontSize="12" Foreground="Gray">
+                                <Run Text="{Binding OllamaStatus, Converter={StaticResource EngineStatusToLabelConverter}}" />
+                                <Run Text=" · PID " />
+                                <Run Text="{Binding OllamaProcessId, TargetNullValue=—}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="12" Height="12" Margin="0,0,10,0" VerticalAlignment="Center"
+                                 Fill="{Binding LlamaCppStatus, Converter={StaticResource EngineStatusToBrushConverter}}" />
+                        <StackPanel>
+                            <TextBlock Text="llama.cpp" FontWeight="SemiBold" />
+                            <TextBlock FontSize="12" Foreground="Gray">
+                                <Run Text="{Binding LlamaCppStatus, Converter={StaticResource EngineStatusToLabelConverter}}" />
+                                <Run Text=" · PID " />
+                                <Run Text="{Binding LlamaCppProcessId, TargetNullValue=—}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Actions rapides -->
+            <TextBlock Text="Actions rapides" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <WrapPanel Margin="0,0,0,8">
+                <Button Style="{StaticResource ActionButton}" Content="Démarrer Ollama" Command="{Binding StartOllamaCommand}" />
+                <Button Style="{StaticResource ActionButton}" Content="Décharger les modèles" Command="{Binding UnloadAllModelsCommand}" />
+                <Button Style="{StaticResource DangerButton}" Content="Arrêter Ollama" Command="{Binding StopOllamaCommand}" />
+                <Button Style="{StaticResource DangerButton}" Content="Arrêter llama.cpp" Command="{Binding StopLlamaCppCommand}" />
+                <Button Style="{StaticResource DangerButton}" Content="Tout arrêter" Command="{Binding StopAllCommand}" />
+                <CheckBox Content="Démarrage automatique avec Windows" VerticalAlignment="Center" Margin="12,0,0,0"
+                          IsChecked="{Binding IsAutostartEnabled, Mode=OneWay}"
+                          Command="{Binding ToggleAutostartCommand}" />
+            </WrapPanel>
+
+            <!-- Modèles chargés -->
+            <TextBlock Text="Modèles actuellement en mémoire" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Aucun modèle n'est actuellement chargé en mémoire." Foreground="Gray"
+                               Visibility="{Binding LoadedModels.Count, Converter={StaticResource ZeroToVisibleConverter}}" />
+                    <ItemsControl ItemsSource="{Binding LoadedModels}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Engine, Converter={StaticResource EngineKindToLabelConverter}}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding SizeBytes, Converter={StaticResource BytesToGigabytesConverter}}" Foreground="Gray" />
+                                    <TextBlock Grid.Column="3" Text="{Binding VramBytes, Converter={StaticResource BytesToGigabytesConverter}}" Foreground="Gray" />
+                                    <TextBlock Grid.Column="4" Text="{Binding ExpiresAt, StringFormat='expire {0:HH:mm:ss}', TargetNullValue=''}" Foreground="Gray" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Stockage -->
+            <TextBlock Text="Stockage" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <Border Style="{StaticResource CardBorder}">
+                <ItemsControl ItemsSource="{Binding Disks}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Margin="0,2">
+                                <Run Text="{Binding DriveLetter}" FontWeight="SemiBold" />
+                                <Run Text=" : " />
+                                <Run Text="{Binding FreeBytes, Converter={StaticResource BytesToGigabytesConverter}}" />
+                                <Run Text=" libres / " />
+                                <Run Text="{Binding TotalBytes, Converter={StaticResource BytesToGigabytesConverter}}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- Journal en direct -->
+            <TextBlock Text="Journal en direct" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <Border Style="{StaticResource CardBorder}" Padding="8">
+                <ListBox ItemsSource="{Binding LogLines}" Height="180" FontFamily="Consolas" FontSize="11"
+                         BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

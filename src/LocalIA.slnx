@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="LocalIA.App/LocalIA.App.csproj" />
+  <Project Path="LocalIA.Core/LocalIA.Core.csproj" />
+  <Project Path="LocalIA.Infrastructure/LocalIA.Infrastructure.csproj" />
+  <Project Path="LocalIA.Tests/LocalIA.Tests.csproj" />
+</Solution>

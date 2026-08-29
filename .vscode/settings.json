@@ -1,0 +1,7 @@
+{
+  "ollama.endpoint": "http://127.0.0.1:11434",
+  "localia.activeProfile": "deep_reasoning",
+  "localia.activeTier": "32b",
+  "localia.activeModel": "local-ia-deep-reasoning:32b",
+  "localia.endpoint": "http://127.0.0.1:11434/v1"
+}
