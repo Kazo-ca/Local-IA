@@ -186,7 +186,17 @@
             </Border>
 
             <!-- Journal en direct -->
-            <TextBlock Text="Journal en direct" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <Grid Margin="0,8,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Journal en direct" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource ActionButton}" Content="Copier" Command="{Binding CopyLogsCommand}" Margin="0,0,8,0" />
+                    <Button Style="{StaticResource ActionButton}" Content="Enregistrer sous..." Command="{Binding SaveLogsCommand}" Margin="0" />
+                </StackPanel>
+            </Grid>
             <Border Style="{StaticResource CardBorder}" Padding="8">
                 <ListBox ItemsSource="{Binding LogLines}" Height="180" FontFamily="Consolas" FontSize="11"
                          BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Auto">
