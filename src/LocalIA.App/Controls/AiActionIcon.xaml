@@ -1,0 +1,24 @@
+<UserControl x:Class="LocalIA.App.Controls.AiActionIcon"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             Width="16" Height="16" SnapsToDevicePixels="True">
+    <!--
+        Icône réutilisée sur tous les boutons qui font analyser des données par le modèle local
+        (ex. « Analyser les logs » du Tableau de bord) : robot au repos, remplacé par un anneau
+        tournant tant que IsBusy est vrai — jamais les deux visibles en même temps.
+    -->
+    <Grid>
+        <TextBlock x:Name="RobotGlyph" Text="&#x1F916;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <Path x:Name="Spinner" Width="13" Height="13" Stretch="Uniform" Visibility="Collapsed"
+              Stroke="#555555" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+              Data="M 7,0.7 A 6.3,6.3 0 1 1 1.4,3.85"
+              RenderTransformOrigin="0.5,0.5">
+            <Path.RenderTransform>
+                <RotateTransform x:Name="SpinnerRotate" Angle="0" />
+            </Path.RenderTransform>
+        </Path>
+    </Grid>
+</UserControl>

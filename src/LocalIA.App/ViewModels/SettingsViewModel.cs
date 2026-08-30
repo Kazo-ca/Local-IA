@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalIA.Core.Abstractions;
@@ -54,6 +55,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     // VS Code
     [ObservableProperty]
     private bool isSyncingVsCode;
+
+    [ObservableProperty]
+    private bool isBuildingVsCodePreview;
+
+    [ObservableProperty]
+    private string? vsCodeJsonPreview;
 
     // Preferences
     [ObservableProperty]
@@ -194,4 +201,38 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenChatLanguageModelsInVsCode() => _vsCodeConfigurationService.OpenChatLanguageModelsInVsCode();
+
+    [RelayCommand]
+    private async Task PreviewVsCodeJsonAsync()
+    {
+        IsBuildingVsCodePreview = true;
+        try
+        {
+            var config = await _configRepository.LoadAsync();
+            VsCodeJsonPreview = await _vsCodeConfigurationService.BuildChatLanguageModelsPreviewAsync(config);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"Échec de la génération de l'aperçu : {ex.Message}";
+        }
+        finally
+        {
+            IsBuildingVsCodePreview = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CopyVsCodeJsonPreview()
+    {
+        if (string.IsNullOrEmpty(VsCodeJsonPreview))
+        {
+            return;
+        }
+
+        Clipboard.SetText(VsCodeJsonPreview);
+        StatusMessage = "JSON copié dans le presse-papiers.";
+    }
+
+    [RelayCommand]
+    private void CloseVsCodeJsonPreview() => VsCodeJsonPreview = null;
 }

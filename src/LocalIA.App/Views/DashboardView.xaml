@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:LocalIA.App.Controls"
              mc:Ignorable="d"
              d:DesignHeight="650" d:DesignWidth="950">
     <UserControl.Resources>
@@ -198,7 +199,16 @@
                 <TextBlock Grid.Column="0" Text="Journal en direct" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button Style="{StaticResource ActionButton}" Content="Copier" Command="{Binding CopyLogsCommand}" Margin="0,0,8,0" />
-                    <Button Style="{StaticResource ActionButton}" Content="Enregistrer sous..." Command="{Binding SaveLogsCommand}" Margin="0" />
+                    <Button Style="{StaticResource ActionButton}" Content="Enregistrer sous..." Command="{Binding SaveLogsCommand}" Margin="0,0,8,0" />
+                    <Button Style="{StaticResource ActionButton}" Command="{Binding AnalyzeLogsCommand}" Margin="0,0,8,0"
+                            IsEnabled="{Binding IsAnalyzingLogs, Converter={StaticResource InverseBoolConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:AiActionIcon IsBusy="{Binding IsAnalyzingLogs}" Margin="0,0,6,0" />
+                            <TextBlock Text="Analyser les logs" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource DangerButton}" Content="Arrêter l'analyse" Command="{Binding StopLogAnalysisCommand}" Margin="0"
+                            Visibility="{Binding IsAnalyzingLogs, Converter={StaticResource BoolToVisibleConverter}}" />
                 </StackPanel>
             </Grid>
             <Border Style="{StaticResource CardBorder}" Padding="8">
@@ -211,6 +221,18 @@
                     </ListBox.ItemContainerStyle>
                 </ListBox>
             </Border>
+
+            <!-- Analyse des logs -->
+            <StackPanel Visibility="{Binding LogAnalysisResult, Converter={StaticResource NullToCollapsedConverter}}">
+                <TextBlock Text="Analyse du journal" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="Analyse en cours…" Foreground="Gray" Margin="0,0,0,8"
+                                   Visibility="{Binding IsAnalyzingLogs, Converter={StaticResource BoolToVisibleConverter}}" />
+                        <TextBlock Text="{Binding LogAnalysisResult}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -25,6 +25,13 @@ public interface IVsCodeConfigurationService
     /// </summary>
     Task<VsCodeSyncReport> SyncChatLanguageModelsAsync(AppConfig config, CancellationToken ct = default);
 
+    /// <summary>
+    /// Calcule exactement le même JSON que SyncChatLanguageModelsAsync écrirait, sans jamais
+    /// toucher au fichier — pour un utilisateur qui préfère copier/coller lui-même la config dans
+    /// VS Code plutôt que de laisser l'app écrire directement dans son profil VS Code.
+    /// </summary>
+    Task<string> BuildChatLanguageModelsPreviewAsync(AppConfig config, CancellationToken ct = default);
+
     /// <summary>Ouvre chatLanguageModels.json dans VS Code (équivalent du menu [O] du script legacy).</summary>
     void OpenChatLanguageModelsInVsCode();
 }

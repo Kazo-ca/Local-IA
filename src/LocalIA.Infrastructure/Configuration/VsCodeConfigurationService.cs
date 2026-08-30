@@ -67,9 +67,39 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
     {
         var path = ChatLanguageModelsPath;
         var existed = File.Exists(path);
+        var (merged, ollamaCount, llamaCppCount) = await BuildMergedChatLanguageModelsAsync(config, ct);
 
-        JsonArray root = [];
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var tempPath = path + ".tmp";
+        await File.WriteAllTextAsync(tempPath, merged.ToJsonString(JsonOptions), ct);
         if (existed)
+        {
+            File.Copy(path, path + ".backup", overwrite: true);
+        }
+
+        File.Move(tempPath, path, overwrite: true);
+        logger.LogInformation(
+            "{Path} synchronisé : {OllamaCount} modèle(s) Ollama, {LlamaCppCount} modèle(s) llama.cpp.",
+            path, ollamaCount, llamaCppCount);
+
+        return new VsCodeSyncReport(ollamaCount, llamaCppCount);
+    }
+
+    public async Task<string> BuildChatLanguageModelsPreviewAsync(AppConfig config, CancellationToken ct = default)
+    {
+        // Lecture seule : contrairement à SyncChatLanguageModelsAsync, ne modifie jamais
+        // chatLanguageModels.json — sert uniquement à afficher à l'utilisateur ce qu'il obtiendrait
+        // en cliquant sur Synchroniser, pour qu'il puisse le copier/coller lui-même s'il préfère ne
+        // pas laisser l'app toucher directement à ses fichiers VS Code.
+        var (merged, _, _) = await BuildMergedChatLanguageModelsAsync(config, ct);
+        return merged.ToJsonString(JsonOptions);
+    }
+
+    private async Task<(JsonArray Merged, int OllamaCount, int LlamaCppCount)> BuildMergedChatLanguageModelsAsync(AppConfig config, CancellationToken ct)
+    {
+        var path = ChatLanguageModelsPath;
+        JsonArray root = [];
+        if (File.Exists(path))
         {
             try
             {
@@ -107,20 +137,7 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
             preserved.Add(BuildProvider("LlamaCpp-MoE", "llama", llamaCppModels));
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var tempPath = path + ".tmp";
-        await File.WriteAllTextAsync(tempPath, preserved.ToJsonString(JsonOptions), ct);
-        if (existed)
-        {
-            File.Copy(path, path + ".backup", overwrite: true);
-        }
-
-        File.Move(tempPath, path, overwrite: true);
-        logger.LogInformation(
-            "{Path} synchronisé : {OllamaCount} modèle(s) Ollama, {LlamaCppCount} modèle(s) llama.cpp.",
-            path, ollamaModels.Count, llamaCppModels.Count);
-
-        return new VsCodeSyncReport(ollamaModels.Count, llamaCppModels.Count);
+        return (preserved, ollamaModels.Count, llamaCppModels.Count);
     }
 
     public void OpenChatLanguageModelsInVsCode()

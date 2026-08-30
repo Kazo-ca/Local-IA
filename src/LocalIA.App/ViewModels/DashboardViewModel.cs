@@ -1,9 +1,13 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using LocalIA.App.Chat;
 using LocalIA.Core.Abstractions;
 using LocalIA.Core.Messaging;
 using LocalIA.Core.Models;
@@ -21,6 +25,8 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
     private readonly IAutostartService _autostartService;
     private readonly IEngineInstaller _engineInstaller;
     private readonly IAppConfigRepository _configRepository;
+    private readonly ChatEngineClientResolver _chatEngineClientResolver;
+    private CancellationTokenSource? _logAnalysisCts;
 
     [ObservableProperty]
     private string cpuName = "";
@@ -86,6 +92,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
     [ObservableProperty]
     private bool isAutostartEnabled;
 
+    [ObservableProperty]
+    private bool isAnalyzingLogs;
+
+    [ObservableProperty]
+    private string? logAnalysisResult;
+
     public ObservableCollection<LoadedModelInfo> LoadedModels { get; } = [];
 
     public ObservableCollection<DiskSpaceInfo> Disks { get; } = [];
@@ -100,6 +112,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
         IAutostartService autostartService,
         IEngineInstaller engineInstaller,
         IAppConfigRepository configRepository,
+        ChatEngineClientResolver chatEngineClientResolver,
         IMessenger messenger)
     {
         _ollamaProcessManager = ollamaProcessManager;
@@ -108,6 +121,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
         _autostartService = autostartService;
         _engineInstaller = engineInstaller;
         _configRepository = configRepository;
+        _chatEngineClientResolver = chatEngineClientResolver;
 
         _ollamaProcessManager.LogLineReceived += (_, e) => OnLogLineReceived("Ollama", e);
         _llamaCppProcessManager.LogLineReceived += (_, e) => OnLogLineReceived("llama.cpp", e);
@@ -275,6 +289,84 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
             File.WriteAllLines(dialog.FileName, LogLines);
         }
     }
+
+    [RelayCommand]
+    private async Task AnalyzeLogsAsync()
+    {
+        if (LogLines.Count == 0)
+        {
+            return;
+        }
+
+        var activeModel = LoadedModels.FirstOrDefault();
+        if (activeModel is null)
+        {
+            LogAnalysisResult = "Aucun modèle n'est actuellement chargé — démarre un moteur et charge un modèle avant de lancer l'analyse.";
+            return;
+        }
+
+        IsAnalyzingLogs = true;
+        LogAnalysisResult = "";
+        _logAnalysisCts = new CancellationTokenSource();
+        try
+        {
+            var client = _chatEngineClientResolver.Resolve(activeModel.Engine);
+            var request = new ChatRequest
+            {
+                Model = activeModel.Name,
+                Messages = [new ChatMessage(ChatRole.User, BuildLogAnalysisPrompt())],
+            };
+
+            var result = new StringBuilder();
+            await foreach (var token in client.StreamChatAsync(request, _logAnalysisCts.Token))
+            {
+                if (!string.IsNullOrEmpty(token.DeltaContent))
+                {
+                    result.Append(token.DeltaContent);
+                    LogAnalysisResult = result.ToString();
+                }
+
+                if (token.IsDone)
+                {
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            LogAnalysisResult += "\n[Analyse interrompue]";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
+        {
+            LogAnalysisResult = $"Échec de l'analyse : {ex.Message}";
+        }
+        finally
+        {
+            IsAnalyzingLogs = false;
+            _logAnalysisCts?.Dispose();
+            _logAnalysisCts = null;
+        }
+    }
+
+    // Se limite aux 200 dernières lignes : largement suffisant pour repérer une erreur récurrente
+    // ou un refus de chargement, sans dépasser la fenêtre de contexte d'un petit modèle local.
+    private string BuildLogAnalysisPrompt()
+    {
+        var recentLogs = string.Join(Environment.NewLine, LogLines.TakeLast(200));
+        return $"""
+            Voici les dernières lignes du journal des moteurs d'inférence locaux (Ollama et llama.cpp) de l'application de bureau LOCAL-IA :
+
+            {recentLogs}
+
+            Analyse ce journal et réponds en français, de façon concise :
+            1. Résume les événements ou erreurs notables (ou dis que tout est normal si c'est le cas).
+            2. Si un problème est lié à un paramètre de configuration (VRAM/offload GPU, taille de contexte, keep-alive, port, chemin de modèle...), propose les changements précis à faire dans les écrans Paramètres ou Configuration du modèle.
+            3. Si le problème est d'un autre ordre (pilote, réseau, disque, permissions...), propose la marche à suivre en texte libre.
+            """;
+    }
+
+    [RelayCommand]
+    private void StopLogAnalysis() => _logAnalysisCts?.Cancel();
 
     private static bool Confirm(string message)
         => MessageBox.Show(message, "LOCAL-IA", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
