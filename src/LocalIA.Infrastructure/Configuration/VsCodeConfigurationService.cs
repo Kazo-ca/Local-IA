@@ -159,11 +159,16 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
         ["models"] = models,
     };
 
-    private static JsonArray BuildOllamaModels(AppConfig config)
+    // Contexte par défaut de llama.cpp/Ollama quand ContextSize n'est pas explicitement configuré
+    // sur le palier (correspond à leur propre valeur par défaut, pas une invention de LOCAL-IA).
+    private const int DefaultContextSize = 4096;
+    private const int DefaultMaxOutputTokens = 8192;
+
+    private JsonArray BuildOllamaModels(AppConfig config)
     {
         var models = new JsonArray
         {
-            BuildModel("local-ia-active:latest", "Local IA (profil actif)", $"http://{config.OllamaServer.Host}/v1", toolCalling: true),
+            BuildModel("local-ia-active:latest", "Local IA (profil actif)", $"http://{config.OllamaServer.Host}/v1", toolCalling: true, contextSize: null),
         };
 
         foreach (var (profile, tier) in EnumerateTiers(config, EngineKind.Ollama))
@@ -173,46 +178,70 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
                 continue;
             }
 
-            models.Add(BuildModel(id, $"{profile.Name} — {tier.Label}", $"http://{config.OllamaServer.Host}/v1", tier.ToolCalling));
+            models.Add(BuildModel(id, $"{profile.Name} — {tier.Label}", $"http://{config.OllamaServer.Host}/v1", tier.ToolCalling, tier.Settings.ContextMemory.ContextSize));
         }
 
         return models;
     }
 
-    private static JsonArray BuildLlamaCppModels(AppConfig config)
+    private JsonArray BuildLlamaCppModels(AppConfig config)
     {
         var models = new JsonArray();
         var endpoint = $"http://{config.LlamaCppServer.DefaultHost}:{config.LlamaCppServer.DefaultPort}/v1";
 
         // Plusieurs paliers peuvent pointer vers le même fichier GGUF (ex. réglages MoE distincts
         // pour le même modèle) : dédoublonner par id, sinon chatLanguageModels.json contient deux
-        // entrées avec le même id, ce que VS Code n'attend pas.
-        var seenIds = new HashSet<string>();
+        // entrées avec le même id, ce que VS Code n'attend pas. Impossible de savoir statiquement
+        // lequel des paliers en doublon correspond au serveur llama.cpp réellement lancé (l'app ne
+        // suit pas de « palier actif » pour llama.cpp, un seul processus tournant à la fois) — on
+        // garde donc celui au plus grand contexte configuré, le choix le moins susceptible de sous-
+        // annoncer la vraie capacité à VS Code, et on journalise le doublon écarté pour qu'il ne
+        // disparaisse pas silencieusement.
+        var byId = new Dictionary<string, (ModelProfile Profile, ModelTier Tier)>();
         foreach (var (profile, tier) in EnumerateTiers(config, EngineKind.LlamaCpp))
         {
             var id = tier.LlamaCppSource?.LocalFilePath is { } path
                 ? Path.GetFileNameWithoutExtension(path)
                 : tier.Label;
-            if (!seenIds.Add(id))
+
+            if (byId.TryGetValue(id, out var existing))
             {
+                var keepExisting = (existing.Tier.Settings.ContextMemory.ContextSize ?? DefaultContextSize)
+                    >= (tier.Settings.ContextMemory.ContextSize ?? DefaultContextSize);
+                logger.LogWarning(
+                    "Paliers en doublon pour {Id} : « {Profile1}/{Tier1} » (contexte {Context1}) vs « {Profile2}/{Tier2} » (contexte {Context2}) — {Kept} conservé pour chatLanguageModels.json.",
+                    id, existing.Profile.Name, existing.Tier.Label, existing.Tier.Settings.ContextMemory.ContextSize,
+                    profile.Name, tier.Label, tier.Settings.ContextMemory.ContextSize,
+                    keepExisting ? existing.Tier.Label : tier.Label);
+
+                if (!keepExisting)
+                {
+                    byId[id] = (profile, tier);
+                }
+
                 continue;
             }
 
-            models.Add(BuildModel(id, $"llama.cpp — {profile.Name} ({tier.Label})", endpoint, tier.ToolCalling));
+            byId[id] = (profile, tier);
+        }
+
+        foreach (var (id, (profile, tier)) in byId)
+        {
+            models.Add(BuildModel(id, $"llama.cpp — {profile.Name} ({tier.Label})", endpoint, tier.ToolCalling, tier.Settings.ContextMemory.ContextSize));
         }
 
         return models;
     }
 
-    private static JsonObject BuildModel(string id, string name, string url, bool toolCalling) => new()
+    private static JsonObject BuildModel(string id, string name, string url, bool toolCalling, int? contextSize) => new()
     {
         ["id"] = id,
         ["name"] = name,
         ["url"] = url,
         ["toolCalling"] = toolCalling,
         ["vision"] = false,
-        ["maxInputTokens"] = 32768,
-        ["maxOutputTokens"] = 8192,
+        ["maxInputTokens"] = contextSize ?? DefaultContextSize,
+        ["maxOutputTokens"] = Math.Min(contextSize ?? DefaultContextSize, DefaultMaxOutputTokens),
     };
 
     private static IEnumerable<(ModelProfile Profile, ModelTier Tier)> EnumerateTiers(AppConfig config, EngineKind engine) =>
