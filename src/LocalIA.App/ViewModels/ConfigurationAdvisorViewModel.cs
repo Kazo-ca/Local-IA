@@ -148,6 +148,7 @@ public sealed partial class ConfigurationAdvisorViewModel : ObservableObject
                 .Take(moe.RecommendedNCpuMoe)
                 .Select(l => l.Index)
                 .ToHashSet();
+            _tier.Settings.ApplyRecommendedLoadModeIfUnset();
         }
         else if (rec.RecommendedGpuLayers is { } gpuLayers)
         {

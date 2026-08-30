@@ -15,6 +15,7 @@ public sealed class EngineStatusToLabelConverter : IValueConverter
             EngineStatus.Stopping => "Arrêt…",
             EngineStatus.Crashed => "Planté",
             EngineStatus.Stopped => "Arrêté",
+            EngineStatus.NotInstalled => "Non installé",
             _ => "Inconnu",
         };
     }

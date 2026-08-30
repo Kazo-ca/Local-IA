@@ -34,6 +34,11 @@ public static class LlamaCppLaunchSettingsFactory
 
         if (!string.IsNullOrWhiteSpace(source?.LocalFilePath))
         {
+            if (!File.Exists(source.LocalFilePath))
+            {
+                throw new InvalidOperationException($"Le fichier configuré pour le palier « {tier.Label} » est introuvable : {source.LocalFilePath}");
+            }
+
             args.Add("-m");
             args.Add(source.LocalFilePath);
             modelLabel = source.LocalFilePath;

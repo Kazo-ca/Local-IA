@@ -7,6 +7,7 @@ using LocalIA.Core.Abstractions;
 using LocalIA.Core.Configuration;
 using LocalIA.Core.Gguf;
 using LocalIA.Core.Models;
+using Microsoft.Win32;
 
 namespace LocalIA.App.ViewModels;
 
@@ -17,6 +18,7 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
     private readonly ILlamaCppProcessManager _llamaCppProcessManager;
     private readonly IAppConfigRepository _configRepository;
     private readonly IGgufMetadataReader _ggufReader;
+    private readonly IEngineInstaller _engineInstaller;
 
     [ObservableProperty]
     private ModelTier? tier;
@@ -31,6 +33,15 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
 
     [ObservableProperty]
     private string? llamaCppStatusMessage;
+
+    /// <summary>Vrai dès qu'une tentative de démarrage a révélé que llama-server.exe n'est pas
+    /// configuré ou introuvable — fait apparaître le bouton « Installer llama.cpp » plutôt que de
+    /// laisser le message d'erreur sans suite possible.</summary>
+    [ObservableProperty]
+    private bool isLlamaCppExecutableMissing;
+
+    [ObservableProperty]
+    private bool isInstallingLlamaCpp;
 
     /// <summary>Propriété observable dédiée plutôt qu'un binding XAML direct sur Tier.Engine :
     /// ModelTier n'implémente pas INotifyPropertyChanged, donc un changement de moteur (ComboBox)
@@ -60,7 +71,8 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
         ConfigurationAdvisorViewModel advisor,
         ILlamaCppProcessManager llamaCppProcessManager,
         IAppConfigRepository configRepository,
-        IGgufMetadataReader ggufReader)
+        IGgufMetadataReader ggufReader,
+        IEngineInstaller engineInstaller)
     {
         _navigationService = navigationService;
         _moeViewModel = moeViewModel;
@@ -68,6 +80,7 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
         _llamaCppProcessManager = llamaCppProcessManager;
         _configRepository = configRepository;
         _ggufReader = ggufReader;
+        _engineInstaller = engineInstaller;
 
         // "Appliquer" dans le panneau Conseiller mute Tier.Settings directement (pas via un
         // SettingsFieldDescriptor existant) : Rebuild() régénère les champs affichés avec les
@@ -109,13 +122,37 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
 
         IsStartingLlamaCpp = true;
         LlamaCppStatusMessage = null;
+        IsLlamaCppExecutableMissing = false;
         try
         {
             var config = await _configRepository.LoadAsync();
-            if (string.IsNullOrWhiteSpace(config.LlamaCppServer.ExecutablePath))
+            if (string.IsNullOrWhiteSpace(config.LlamaCppServer.ExecutablePath) || !File.Exists(config.LlamaCppServer.ExecutablePath))
             {
-                LlamaCppStatusMessage = "Chemin de llama-server.exe non configuré (voir Paramètres).";
+                LlamaCppStatusMessage = "llama-server.exe non configuré ou introuvable.";
+                IsLlamaCppExecutableMissing = true;
                 return;
+            }
+
+            var source = tier.LlamaCppSource;
+            var hasValidSource = (!string.IsNullOrWhiteSpace(source?.LocalFilePath) && File.Exists(source.LocalFilePath))
+                || !string.IsNullOrWhiteSpace(source?.HfRepoId);
+            if (!hasValidSource)
+            {
+                // Le moteur est llama.cpp : il faut un fichier GGUF local, pas un nom de modèle
+                // Ollama (les champs OllamaBaseModel/OllamaCustomModelName ne sont pas utilisés
+                // par ce moteur). Plutôt que d'échouer avec un message d'erreur, on demande
+                // directement le fichier — Recherche Hugging Face / MoE restent les façons
+                // habituelles de l'attacher, mais ne doivent pas être un détour obligatoire.
+                var dialog = new OpenFileDialog { Filter = "Modèles GGUF (*.gguf)|*.gguf|Tous les fichiers (*.*)|*.*" };
+                if (dialog.ShowDialog() != true)
+                {
+                    LlamaCppStatusMessage = "Aucun fichier GGUF sélectionné — démarrage annulé.";
+                    return;
+                }
+
+                tier.LlamaCppSource ??= new LlamaCppModelSource();
+                tier.LlamaCppSource.LocalFilePath = dialog.FileName;
+                SettingsChanged?.Invoke();
             }
 
             var totalMoeLayers = 0;
@@ -153,6 +190,37 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
         finally
         {
             IsStartingLlamaCpp = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallLlamaCppAsync()
+    {
+        IsInstallingLlamaCpp = true;
+        try
+        {
+            var progress = new Progress<string>(status => LlamaCppStatusMessage = status);
+            string executablePath;
+            try
+            {
+                executablePath = await _engineInstaller.InstallLlamaCppAsync(progress);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+            {
+                LlamaCppStatusMessage = $"Échec de l'installation : {ex.Message}";
+                return;
+            }
+
+            var config = await _configRepository.LoadAsync();
+            config.LlamaCppServer.ExecutablePath = executablePath;
+            await _configRepository.SaveAsync(config);
+
+            IsLlamaCppExecutableMissing = false;
+            LlamaCppStatusMessage = $"llama.cpp installé : {executablePath}";
+        }
+        finally
+        {
+            IsInstallingLlamaCpp = false;
         }
     }
 

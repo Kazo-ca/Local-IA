@@ -106,6 +106,14 @@
                                     <TextBlock Text="Démarrage en cours…" Foreground="Gray" VerticalAlignment="Center" Margin="10,0,0,0"
                                                Visibility="{Binding IsStartingLlamaCpp, Converter={StaticResource BoolToVisibleConverter}}" />
                                 </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                            Visibility="{Binding IsLlamaCppExecutableMissing, Converter={StaticResource BoolToVisibleConverter}}">
+                                    <Button Content="Installer llama.cpp…" Command="{Binding InstallLlamaCppCommand}"
+                                            IsEnabled="{Binding IsInstallingLlamaCpp, Converter={StaticResource InverseBoolConverter}}"
+                                            Padding="8,4" />
+                                    <TextBlock Text="Installation en cours…" Foreground="Gray" VerticalAlignment="Center" Margin="10,0,0,0"
+                                               Visibility="{Binding IsInstallingLlamaCpp, Converter={StaticResource BoolToVisibleConverter}}" />
+                                </StackPanel>
                                 <TextBlock Text="{Binding LlamaCppStatusMessage}" TextWrapping="Wrap" Margin="0,6,0,0" MaxWidth="500" HorizontalAlignment="Left"
                                            Visibility="{Binding LlamaCppStatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
                             </StackPanel>

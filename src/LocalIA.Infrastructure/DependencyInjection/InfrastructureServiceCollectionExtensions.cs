@@ -56,9 +56,11 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IOllamaProcessManager, OllamaProcessManager>();
         services.AddSingleton<ILlamaCppProcessManager, LlamaCppProcessManager>();
         services.AddSingleton<IEngineOrchestrationService, EngineOrchestrationService>();
+        services.AddSingleton<IEngineInstaller, EngineInstaller>();
         services.AddSingleton<IAutostartService, AutostartService>();
         services.AddSingleton<LegacyConfigImporter>();
         services.AddSingleton<IAppConfigRepository, AppConfigRepository>();
+        services.AddSingleton<IVsCodeConfigurationService, VsCodeConfigurationService>();
         services.AddSingleton<IGgufMetadataReader, GgufMetadataReader>();
         services.AddSingleton<IMoeVramCalculator, MoeVramCalculator>();
         services.AddSingleton<IConfigurationAdvisor, ConfigurationAdvisor>();

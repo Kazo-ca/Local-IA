@@ -34,4 +34,21 @@ public sealed class ModelTierSettings
         Reasoning,
         Adapters,
     ];
+
+    /// <summary>
+    /// À appeler après toute modification de MoeOffload.CpuLayerIndices (Conseiller de
+    /// configuration, page MoE, Assistant nouveau modèle) : llama.cpp affiche explicitement
+    /// « tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for
+    /// better performance » dès que des tenseurs sont déchargés sur CPU pendant que mmap est actif
+    /// (constaté au démarrage réel). Ne modifie jamais un LoadMode déjà choisi explicitement —
+    /// seulement le cas "hérité" (valeur non définie), pour ne jamais passer outre un réglage
+    /// volontaire de l'utilisateur (ex. Mlock pour garantir la résidence en RAM).
+    /// </summary>
+    public void ApplyRecommendedLoadModeIfUnset()
+    {
+        if (MoeOffload.CpuLayerIndices.Count > 0 && ContextMemory.LoadMode is null)
+        {
+            ContextMemory.LoadMode = MemoryLoadMode.None;
+        }
+    }
 }

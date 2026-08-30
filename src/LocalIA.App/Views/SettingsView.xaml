@@ -1,0 +1,122 @@
+<UserControl x:Class="LocalIA.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="750" d:DesignWidth="900">
+    <UserControl.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,10,0,3" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="Gray" />
+        </Style>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DDDDDD" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+        <StackPanel MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="Paramètres" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0" />
+                <Button Content="Enregistrer" Command="{Binding SaveCommand}" Padding="12,6"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+            </StackPanel>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="Gray" Margin="0,0,0,16" TextWrapping="Wrap"
+                       Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Stockage" Style="{StaticResource SectionHeader}" />
+                    <TextBlock Text="Dossier des modèles Ollama" Style="{StaticResource FieldLabel}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding OllamaModelsPath, UpdateSourceTrigger=PropertyChanged}" Width="450" Margin="0,0,8,0" />
+                        <Button Content="Parcourir…" Command="{Binding BrowseOllamaModelsPathCommand}" Padding="8,4" />
+                    </StackPanel>
+
+                    <TextBlock Text="Dossier des modèles llama.cpp (fichiers .gguf téléchargés)" Style="{StaticResource FieldLabel}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding LlamaModelsPath, UpdateSourceTrigger=PropertyChanged}" Width="450" Margin="0,0,8,0" />
+                        <Button Content="Parcourir…" Command="{Binding BrowseLlamaModelsPathCommand}" Padding="8,4" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Serveur Ollama" Style="{StaticResource SectionHeader}" />
+                    <TextBlock Text="Hôte:port (OLLAMA_HOST)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding OllamaHost, UpdateSourceTrigger=PropertyChanged}" Width="220" HorizontalAlignment="Left" />
+
+                    <TextBlock Text="Maintien en mémoire (OLLAMA_KEEP_ALIVE, ex. 60m, -1 pour indéfini)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding OllamaKeepAlive, UpdateSourceTrigger=PropertyChanged}" Width="220" HorizontalAlignment="Left" />
+
+                    <TextBlock Text="Requêtes parallèles (OLLAMA_NUM_PARALLEL)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding OllamaNumParallel, UpdateSourceTrigger=PropertyChanged}" Width="80" HorizontalAlignment="Left" />
+
+                    <TextBlock Text="Ces trois valeurs ne s'appliquent qu'au prochain démarrage d'Ollama depuis le Tableau de bord — pas à une instance déjà en cours."
+                               FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Serveur llama.cpp" Style="{StaticResource SectionHeader}" />
+                    <TextBlock Text="Chemin de llama-server.exe" Style="{StaticResource FieldLabel}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding LlamaCppExecutablePath, UpdateSourceTrigger=PropertyChanged}" Width="450" Margin="0,0,8,0" />
+                        <Button Content="Parcourir…" Command="{Binding BrowseLlamaCppExecutableCommand}" Padding="8,4" Margin="0,0,8,0" />
+                        <Button Content="Installer…" Command="{Binding InstallLlamaCppCommand}" Padding="8,4"
+                                IsEnabled="{Binding IsInstallingLlamaCpp, Converter={StaticResource InverseBoolConverter}}" />
+                    </StackPanel>
+                    <TextBlock Text="Installation en cours…" Foreground="Gray" Margin="0,4,0,0"
+                               Visibility="{Binding IsInstallingLlamaCpp, Converter={StaticResource BoolToVisibleConverter}}" />
+
+                    <TextBlock Text="Hôte et port par défaut" Style="{StaticResource FieldLabel}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding LlamaCppDefaultHost, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="0,0,8,0" />
+                        <TextBox Text="{Binding LlamaCppDefaultPort, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                    </StackPanel>
+                    <TextBlock Text="Change ceci uniquement si tu utilises aussi --host/--port personnalisés dans Configuration du modèle pour tous tes paliers llama.cpp (voir Limitations connues)."
+                               FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="VS Code" Style="{StaticResource SectionHeader}" />
+                    <TextBlock Text="Synchronise les modèles Ollama et llama.cpp configurés ci-dessus avec l'extension Copilot Chat de VS Code (chatLanguageModels.json). Le profil actif (bouton « Activer » de l'écran Profils) met aussi à jour .vscode/settings.json si l'app tourne depuis le dépôt."
+                               FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Synchroniser chatLanguageModels.json" Command="{Binding SyncVsCodeCommand}" Padding="8,4" Margin="0,0,8,0"
+                                IsEnabled="{Binding IsSyncingVsCode, Converter={StaticResource InverseBoolConverter}}" />
+                        <Button Content="Ouvrir dans VS Code" Command="{Binding OpenChatLanguageModelsInVsCodeCommand}" Padding="8,4" />
+                    </StackPanel>
+                    <TextBlock Text="Synchronisation en cours…" Foreground="Gray" Margin="0,4,0,0"
+                               Visibility="{Binding IsSyncingVsCode, Converter={StaticResource BoolToVisibleConverter}}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Préférences" Style="{StaticResource SectionHeader}" />
+                    <TextBlock Text="Jeton d'accès Hugging Face (optionnel — dépôts privés/limités uniquement)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding HuggingFaceApiToken, UpdateSourceTrigger=PropertyChanged}" Width="450" HorizontalAlignment="Left" />
+
+                    <CheckBox Content="Arrêter Ollama et llama.cpp en fermant l'application" IsChecked="{Binding StopEnginesOnExit}" Margin="0,16,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

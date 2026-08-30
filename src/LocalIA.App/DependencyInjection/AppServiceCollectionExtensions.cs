@@ -1,6 +1,7 @@
 using LocalIA.App.Chat;
 using LocalIA.App.Navigation;
 using LocalIA.App.ViewModels;
+using LocalIA.App.Views;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LocalIA.App.DependencyInjection;
@@ -18,8 +19,11 @@ public static class AppServiceCollectionExtensions
         services.AddSingleton<ModelConfigurationViewModel>();
         services.AddSingleton<MoeViewModel>();
         services.AddSingleton<HuggingFaceSearchViewModel>();
+        services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<ShellViewModel>();
         services.AddTransient<MainWindow>();
+        services.AddTransient<NewModelWizardViewModel>();
+        services.AddTransient<NewModelWizardWindow>();
 
         return services;
     }

@@ -14,6 +14,7 @@ public sealed class EngineStatusToBrushConverter : IValueConverter
             EngineStatus.Running => Brushes.MediumSeaGreen,
             EngineStatus.Starting or EngineStatus.Stopping => Brushes.Goldenrod,
             EngineStatus.Crashed => Brushes.IndianRed,
+            EngineStatus.NotInstalled => Brushes.DarkOrange,
             _ => Brushes.Gray,
         };
     }

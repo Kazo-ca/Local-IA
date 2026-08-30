@@ -1,0 +1,238 @@
+<Window x:Class="LocalIA.App.Views.NewModelWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="LOCAL-IA — Assistant nouveau modèle" Height="640" Width="820"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,10,0,3" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="Gray" />
+        </Style>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DDDDDD" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- En-tête / fil d'Ariane -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="1. Profil" FontWeight="Bold" Margin="0,0,16,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="Gray" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsProfileStep}" Value="True">
+                                <Setter Property="Foreground" Value="Black" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="2. Modèle" FontWeight="Bold" Margin="0,0,16,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="Gray" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsModelStep}" Value="True">
+                                <Setter Property="Foreground" Value="Black" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="3. Configuration" FontWeight="Bold" Margin="0,0,16,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="Gray" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsConfigureStep}" Value="True">
+                                <Setter Property="Foreground" Value="Black" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="4. Résumé" FontWeight="Bold">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="Gray" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSummaryStep}" Value="True">
+                                <Setter Property="Foreground" Value="Black" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Étape 1 : Profil -->
+                <StackPanel Visibility="{Binding IsProfileStep, Converter={StaticResource BoolToVisibleConverter}}">
+                    <RadioButton Content="Nouveau profil" IsChecked="{Binding IsNewProfile}" Margin="0,0,0,4" />
+                    <StackPanel Margin="20,0,0,8" Visibility="{Binding IsNewProfile, Converter={StaticResource BoolToVisibleConverter}}">
+                        <TextBlock Text="Nom du profil" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="Description" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding NewProfileDescription, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="50" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <RadioButton Content="Profil existant" IsChecked="{Binding IsNewProfile, Converter={StaticResource InverseBoolConverter}}" Margin="0,4,0,4" />
+                    <StackPanel Margin="20,0,0,8" Visibility="{Binding IsNewProfile, Converter={StaticResource InverseBoolToVisibleConverter}}">
+                        <ComboBox ItemsSource="{Binding ExistingProfiles}" SelectedItem="{Binding SelectedExistingProfile}" DisplayMemberPath="Name" Width="300" HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <TextBlock Text="Étiquette du palier (ex. max_accuracy)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding TierLabel, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left" />
+                </StackPanel>
+
+                <!-- Étape 2 : Modèle -->
+                <StackPanel Visibility="{Binding IsModelStep, Converter={StaticResource BoolToVisibleConverter}}">
+                    <TextBlock Text="Moteur" Style="{StaticResource FieldLabel}" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="llama.cpp" GroupName="Engine" IsChecked="{Binding IsLlamaCppEngineSelected}" Margin="0,0,16,0" />
+                        <RadioButton Content="Ollama" GroupName="Engine" IsChecked="{Binding IsOllamaEngineSelected}" />
+                    </StackPanel>
+
+                    <!-- Ollama -->
+                    <StackPanel Visibility="{Binding IsOllamaEngineSelected, Converter={StaticResource BoolToVisibleConverter}}">
+                        <TextBlock Text="Modèle de base Ollama (ex. qwen2.5-coder:32b-instruct)" Style="{StaticResource FieldLabel}" />
+                        <ComboBox ItemsSource="{Binding InstalledOllamaModels}" Text="{Binding OllamaBaseModel, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Width="350" HorizontalAlignment="Left" />
+                        <TextBlock Text="Nom du modèle personnalisé (ex. local-ia-nouveau:32b)" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding OllamaCustomModelName, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <!-- llama.cpp -->
+                    <StackPanel Visibility="{Binding IsLlamaCppEngineSelected, Converter={StaticResource BoolToVisibleConverter}}">
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,4">
+                            <RadioButton Content="Fichier local déjà téléchargé" IsChecked="{Binding UseLocalFile}" Margin="0,0,16,0" />
+                            <RadioButton Content="Rechercher sur Hugging Face" IsChecked="{Binding UseLocalFile, Converter={StaticResource InverseBoolConverter}}" />
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding UseLocalFile, Converter={StaticResource BoolToVisibleConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Parcourir…" Command="{Binding BrowseLocalFileCommand}" Padding="8,4" Margin="0,0,8,0" />
+                                <TextBlock Text="{Binding LocalFilePath}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding UseLocalFile, Converter={StaticResource InverseBoolToVisibleConverter}}">
+                            <TextBlock Text="Rechercher un modèle (ex. qwen2.5-coder)" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" />
+                            <ListBox ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedSearchResult}" DisplayMemberPath="Id"
+                                     Height="90" Margin="0,6,0,0" />
+                            <ListBox ItemsSource="{Binding RepoFiles}" SelectedItem="{Binding SelectedFile}" Height="90" Margin="0,6,0,0"
+                                     Visibility="{Binding SelectedSearchResult, Converter={StaticResource NullToCollapsedConverter}}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <Run Text="{Binding QuantLabel, Mode=OneWay}" FontWeight="SemiBold" />
+                                            <Run Text=" — " />
+                                            <Run Text="{Binding FileName, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                        Visibility="{Binding SelectedFile, Converter={StaticResource NullToCollapsedConverter}}">
+                                <Button Content="Télécharger maintenant" Command="{Binding DownloadSelectedFileCommand}" Padding="8,4"
+                                        IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" />
+                                <TextBlock Text="Téléchargement…" Foreground="Gray" VerticalAlignment="Center" Margin="10,0,0,0"
+                                           Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibleConverter}}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding LocalFilePath, StringFormat='Attaché : {0}'}" Margin="0,6,0,0" FontSize="11" Foreground="Gray"
+                                       Visibility="{Binding LocalFilePath, Converter={StaticResource NullToCollapsedConverter}}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Text="Invite système (optionnel)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding SystemPrompt, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="70" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- Étape 3 : Configuration automatique -->
+                <StackPanel Visibility="{Binding IsConfigureStep, Converter={StaticResource BoolToVisibleConverter}}">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Recalculer" Command="{Binding AnalyzeCommand}" Padding="8,3" Margin="0,0,8,0" />
+                        <Button Content="Demander à l'IA" Command="{Binding AskAiCommand}" Padding="8,3" />
+                        <TextBlock Text="Analyse en cours…" Foreground="Gray" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Visibility="{Binding IsAnalyzing, Converter={StaticResource BoolToVisibleConverter}}" />
+                        <TextBlock Text="L'IA réfléchit…" Foreground="Gray" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Visibility="{Binding IsAskingAi, Converter={StaticResource BoolToVisibleConverter}}" />
+                    </StackPanel>
+
+                    <Border Style="{StaticResource CardBorder}" Visibility="{Binding Recommendation, Converter={StaticResource NullToCollapsedConverter}}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                         Fill="{Binding Recommendation.Verdict, Converter={StaticResource FitVerdictToBrushConverter}}" />
+                                <TextBlock Text="{Binding Recommendation.Verdict, Converter={StaticResource FitVerdictToLabelConverter}}" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Recommendation.Summary}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding RecommendedParamsText}" FontWeight="SemiBold" Margin="0,8,0,0" />
+                            <TextBlock Text="Ces réglages ont été appliqués automatiquement au palier — ajustables après création via Configuration du modèle." FontSize="11" Foreground="Gray" Margin="0,4,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource CardBorder}" Background="#F3F6FF" BorderBrush="#D6E0F5"
+                            Visibility="{Binding AiJustification, Converter={StaticResource NullToCollapsedConverter}}">
+                        <StackPanel>
+                            <TextBlock Margin="0,0,0,4">
+                                <Run Text="Avis de l'IA" FontWeight="SemiBold" />
+                                <Run Text=" — " />
+                                <Run Text="{Binding AiAgreement, Mode=OneWay}" FontStyle="Italic" />
+                            </TextBlock>
+                            <TextBlock Text="{Binding AiJustification}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Étape 4 : Résumé -->
+                <StackPanel Visibility="{Binding IsSummaryStep, Converter={StaticResource BoolToVisibleConverter}}">
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Margin="0,0,0,6">
+                                <Run Text="{Binding TierLabel}" />
+                                <Run Text=" — " />
+                                <Run Text="{Binding Engine, Converter={StaticResource EngineKindToLabelConverter}}" />
+                            </TextBlock>
+                            <TextBlock Text="{Binding LocalFilePath, StringFormat='Fichier : {0}'}" Visibility="{Binding LocalFilePath, Converter={StaticResource NullToCollapsedConverter}}" />
+                            <TextBlock Text="{Binding OllamaBaseModel, StringFormat='Modèle de base : {0}'}" Visibility="{Binding IsOllamaEngineSelected, Converter={StaticResource BoolToVisibleConverter}}" />
+                            <TextBlock Text="{Binding RecommendedParamsText, StringFormat='Réglages appliqués : {0}'}" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="DarkOrange" TextWrapping="Wrap"
+                               Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pied de page : navigation -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Annuler" Click="OnCancelClick" Padding="12,6" Margin="0,0,8,0" />
+            <Button Content="← Précédent" Command="{Binding GoBackCommand}" Padding="12,6" Margin="0,0,8,0"
+                    Visibility="{Binding IsProfileStep, Converter={StaticResource InverseBoolToVisibleConverter}}" />
+            <Button Content="Suivant →" Command="{Binding GoNextCommand}" Padding="12,6"
+                    Visibility="{Binding IsLastStep, Converter={StaticResource InverseBoolToVisibleConverter}}" />
+            <Button Content="Créer" Click="OnCreateClick" Padding="12,6" FontWeight="Bold"
+                    Visibility="{Binding IsLastStep, Converter={StaticResource BoolToVisibleConverter}}" />
+        </StackPanel>
+    </Grid>
+</Window>

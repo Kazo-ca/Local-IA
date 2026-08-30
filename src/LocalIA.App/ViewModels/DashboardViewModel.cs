@@ -19,6 +19,8 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
     private readonly ILlamaCppProcessManager _llamaCppProcessManager;
     private readonly IEngineOrchestrationService _orchestrationService;
     private readonly IAutostartService _autostartService;
+    private readonly IEngineInstaller _engineInstaller;
+    private readonly IAppConfigRepository _configRepository;
 
     [ObservableProperty]
     private string cpuName = "";
@@ -56,6 +58,16 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
     [ObservableProperty]
     private EngineStatus ollamaStatus;
 
+    public bool IsOllamaNotInstalled => OllamaStatus == EngineStatus.NotInstalled;
+
+    partial void OnOllamaStatusChanged(EngineStatus value) => OnPropertyChanged(nameof(IsOllamaNotInstalled));
+
+    [ObservableProperty]
+    private bool isInstallingOllama;
+
+    [ObservableProperty]
+    private string? installStatusMessage;
+
     [ObservableProperty]
     private int? ollamaProcessId;
 
@@ -86,12 +98,16 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
         ILlamaCppProcessManager llamaCppProcessManager,
         IEngineOrchestrationService orchestrationService,
         IAutostartService autostartService,
+        IEngineInstaller engineInstaller,
+        IAppConfigRepository configRepository,
         IMessenger messenger)
     {
         _ollamaProcessManager = ollamaProcessManager;
         _llamaCppProcessManager = llamaCppProcessManager;
         _orchestrationService = orchestrationService;
         _autostartService = autostartService;
+        _engineInstaller = engineInstaller;
+        _configRepository = configRepository;
 
         _ollamaProcessManager.LogLineReceived += (_, e) => OnLogLineReceived("Ollama", e);
         _llamaCppProcessManager.LogLineReceived += (_, e) => OnLogLineReceived("llama.cpp", e);
@@ -109,13 +125,36 @@ public sealed partial class DashboardViewModel : ObservableObject, IRecipient<Ha
     }
 
     [RelayCommand]
+    private async Task InstallOllamaAsync()
+    {
+        IsInstallingOllama = true;
+        InstallStatusMessage = null;
+        try
+        {
+            var progress = new Progress<string>(status => InstallStatusMessage = status);
+            await _engineInstaller.LaunchOllamaInstallerAsync(progress);
+            InstallStatusMessage = "Installeur Ollama lancé — suis les instructions à l'écran, puis clique à nouveau sur Démarrer Ollama une fois l'installation terminée.";
+        }
+        catch (HttpRequestException ex)
+        {
+            InstallStatusMessage = $"Échec du téléchargement de l'installeur : {ex.Message}";
+        }
+        finally
+        {
+            IsInstallingOllama = false;
+        }
+    }
+
+    [RelayCommand]
     private async Task StartOllamaAsync()
     {
+        var config = await _configRepository.LoadAsync();
         await RunBusyAsync(() => _ollamaProcessManager.EnsureRunningAsync(new OllamaStartOptions
         {
-            // Valeurs par défaut du toolkit PowerShell existant (config/config.json) ; deviendront
-            // configurables via IAppConfigRepository en phase 4.
-            ModelsPath = @"E:\ollama_models",
+            ModelsPath = config.Storage.OllamaModelsPath,
+            Host = config.OllamaServer.Host,
+            KeepAlive = config.OllamaServer.KeepAlive,
+            NumParallel = config.OllamaServer.NumParallel,
         }));
     }
 

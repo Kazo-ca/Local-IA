@@ -129,6 +129,8 @@
             <TextBlock Text="Actions rapides" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
             <WrapPanel Margin="0,0,0,8">
                 <Button Style="{StaticResource ActionButton}" Content="Démarrer Ollama" Command="{Binding StartOllamaCommand}" />
+                <Button Style="{StaticResource ActionButton}" Content="Installer Ollama…" Command="{Binding InstallOllamaCommand}"
+                        Visibility="{Binding IsOllamaNotInstalled, Converter={StaticResource BoolToVisibleConverter}}" />
                 <Button Style="{StaticResource ActionButton}" Content="Décharger les modèles" Command="{Binding UnloadAllModelsCommand}" />
                 <Button Style="{StaticResource DangerButton}" Content="Arrêter Ollama" Command="{Binding StopOllamaCommand}" />
                 <Button Style="{StaticResource DangerButton}" Content="Arrêter llama.cpp" Command="{Binding StopLlamaCppCommand}" />
@@ -137,6 +139,8 @@
                           IsChecked="{Binding IsAutostartEnabled, Mode=OneWay}"
                           Command="{Binding ToggleAutostartCommand}" />
             </WrapPanel>
+            <TextBlock Text="{Binding InstallStatusMessage}" Foreground="DarkOrange" TextWrapping="Wrap" Margin="0,0,0,8"
+                       Visibility="{Binding InstallStatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
 
             <!-- Modèles chargés -->
             <TextBlock Text="Modèles actuellement en mémoire" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />

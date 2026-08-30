@@ -18,7 +18,8 @@ public sealed partial class ShellViewModel : ObservableObject
         ProfilesViewModel profilesViewModel,
         ModelConfigurationViewModel modelConfigurationViewModel,
         MoeViewModel moeViewModel,
-        HuggingFaceSearchViewModel huggingFaceSearchViewModel)
+        HuggingFaceSearchViewModel huggingFaceSearchViewModel,
+        SettingsViewModel settingsViewModel)
     {
         navigationService.CurrentViewModelChanged += vm => CurrentPageViewModel = vm;
 
@@ -30,7 +31,7 @@ public sealed partial class ShellViewModel : ObservableObject
             new NavigationItemViewModel("Configuration du modèle", modelConfigurationViewModel, navigationService),
             new NavigationItemViewModel("MoE", moeViewModel, navigationService),
             new NavigationItemViewModel("Recherche Hugging Face", huggingFaceSearchViewModel, navigationService),
-            new NavigationItemViewModel("Paramètres", new PlaceholderViewModel("Paramètres"), navigationService),
+            new NavigationItemViewModel("Paramètres", settingsViewModel, navigationService),
         ];
 
         navigationService.NavigateTo(dashboardViewModel);

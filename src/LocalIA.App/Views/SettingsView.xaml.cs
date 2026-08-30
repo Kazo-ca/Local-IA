@@ -2,9 +2,9 @@ using System.Windows.Controls;
 
 namespace LocalIA.App.Views;
 
-public partial class PlaceholderView : UserControl
+public partial class SettingsView : UserControl
 {
-    public PlaceholderView()
+    public SettingsView()
     {
         InitializeComponent();
     }

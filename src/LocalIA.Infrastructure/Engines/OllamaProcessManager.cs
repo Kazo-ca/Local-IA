@@ -93,7 +93,15 @@ public sealed class OllamaProcessManager : IOllamaProcessManager, IDisposable
 
             SetStatus(EngineStatus.Starting, externalId, isOwned: false);
 
-            var startInfo = new ProcessStartInfo("ollama")
+            // Un "ollama" tout juste installé n'est pas forcément déjà visible dans le PATH du
+            // process courant (les variables d'environnement ne se propagent pas à un process déjà
+            // lancé) — vérifier l'emplacement d'installation par défaut évite d'attendre un
+            // redémarrage de l'app après un premier "Installer Ollama" réussi.
+            var defaultInstallPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Ollama", "ollama.exe");
+            var executable = File.Exists(defaultInstallPath) ? defaultInstallPath : "ollama";
+
+            var startInfo = new ProcessStartInfo(executable)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -130,10 +138,11 @@ public sealed class OllamaProcessManager : IOllamaProcessManager, IDisposable
             }
             catch (Win32Exception ex)
             {
-                // "ollama" introuvable dans le PATH — même traitement que OllamaApiClient.UnloadModelAsync
-                // pour le même exécutable, plutôt que de laisser l'exception remonter jusqu'au popup générique.
+                // "ollama" introuvable (ni PATH, ni emplacement par défaut) — distinct de Crashed
+                // (qui suppose qu'un exécutable a été trouvé et démarré) : NotInstalled permet à
+                // l'UI de proposer un bouton d'installation plutôt qu'un message d'erreur muet.
                 _logger.LogWarning(ex, "Impossible de démarrer Ollama : exécutable introuvable");
-                SetStatus(EngineStatus.Crashed, null, isOwned: false);
+                SetStatus(EngineStatus.NotInstalled, null, isOwned: false);
                 return false;
             }
 

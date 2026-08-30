@@ -247,6 +247,7 @@ public sealed partial class MoeViewModel : ObservableObject
         if (_tier is not null)
         {
             _tier.Settings.MoeOffload.CpuLayerIndices = [.. _cpuLayerIndices];
+            _tier.Settings.ApplyRecommendedLoadModeIfUnset();
         }
 
         UpdatePreview();

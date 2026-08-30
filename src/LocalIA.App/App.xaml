@@ -42,8 +42,8 @@
         <DataTemplate DataType="{x:Type vm:HuggingFaceSearchViewModel}">
             <views:HuggingFaceSearchView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
-            <views:PlaceholderView />
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView />
         </DataTemplate>
     </Application.Resources>
 </Application>
