@@ -52,6 +52,27 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool isInstallingLlamaCpp;
 
+    // Routeur
+    [ObservableProperty]
+    private bool routerEnabled;
+
+    [ObservableProperty]
+    private string routerHost = "";
+
+    [ObservableProperty]
+    private int routerPort;
+
+    [ObservableProperty]
+    private int routerIdleUnloadGraceSeconds;
+
+    [ObservableProperty]
+    private int routerMaxHistoryEntries;
+
+    /// <summary>En Mo pour l'écran (plus lisible qu'un nombre d'octets) — converti vers/depuis
+    /// RouterSettings.VramSafetyMarginBytes dans LoadAsync/SaveAsync.</summary>
+    [ObservableProperty]
+    private int routerVramSafetyMarginMb;
+
     // VS Code
     [ObservableProperty]
     private bool isSyncingVsCode;
@@ -91,6 +112,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         LlamaCppExecutablePath = config.LlamaCppServer.ExecutablePath;
         LlamaCppDefaultHost = config.LlamaCppServer.DefaultHost;
         LlamaCppDefaultPort = config.LlamaCppServer.DefaultPort;
+        RouterEnabled = config.Router.Enabled;
+        RouterHost = config.Router.Host;
+        RouterPort = config.Router.Port;
+        RouterIdleUnloadGraceSeconds = config.Router.IdleUnloadGraceSeconds;
+        RouterMaxHistoryEntries = config.Router.MaxHistoryEntries;
+        RouterVramSafetyMarginMb = (int)(config.Router.VramSafetyMarginBytes / (1024 * 1024));
         HuggingFaceApiToken = config.Preferences.HuggingFaceApiToken;
         StopEnginesOnExit = config.Preferences.StopEnginesOnExit;
         IsLoaded = true;
@@ -114,6 +141,12 @@ public sealed partial class SettingsViewModel : ObservableObject
             config.LlamaCppServer.ExecutablePath = LlamaCppExecutablePath;
             config.LlamaCppServer.DefaultHost = LlamaCppDefaultHost;
             config.LlamaCppServer.DefaultPort = LlamaCppDefaultPort;
+            config.Router.Enabled = RouterEnabled;
+            config.Router.Host = RouterHost;
+            config.Router.Port = RouterPort;
+            config.Router.IdleUnloadGraceSeconds = RouterIdleUnloadGraceSeconds;
+            config.Router.MaxHistoryEntries = RouterMaxHistoryEntries;
+            config.Router.VramSafetyMarginBytes = RouterVramSafetyMarginMb * 1024L * 1024L;
             config.Preferences.HuggingFaceApiToken = string.IsNullOrWhiteSpace(HuggingFaceApiToken) ? null : HuggingFaceApiToken;
             config.Preferences.StopEnginesOnExit = StopEnginesOnExit;
 

@@ -5,7 +5,6 @@ using LocalIA.App.Configuration;
 using LocalIA.App.Navigation;
 using LocalIA.Core.Abstractions;
 using LocalIA.Core.Configuration;
-using LocalIA.Core.Gguf;
 using LocalIA.Core.Models;
 using Microsoft.Win32;
 
@@ -17,7 +16,7 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
     private readonly MoeViewModel _moeViewModel;
     private readonly ILlamaCppProcessManager _llamaCppProcessManager;
     private readonly IAppConfigRepository _configRepository;
-    private readonly IGgufMetadataReader _ggufReader;
+    private readonly ILlamaCppLaunchPlanner _llamaCppLaunchPlanner;
     private readonly IEngineInstaller _engineInstaller;
 
     [ObservableProperty]
@@ -71,7 +70,7 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
         ConfigurationAdvisorViewModel advisor,
         ILlamaCppProcessManager llamaCppProcessManager,
         IAppConfigRepository configRepository,
-        IGgufMetadataReader ggufReader,
+        ILlamaCppLaunchPlanner llamaCppLaunchPlanner,
         IEngineInstaller engineInstaller)
     {
         _navigationService = navigationService;
@@ -79,7 +78,7 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
         Advisor = advisor;
         _llamaCppProcessManager = llamaCppProcessManager;
         _configRepository = configRepository;
-        _ggufReader = ggufReader;
+        _llamaCppLaunchPlanner = llamaCppLaunchPlanner;
         _engineInstaller = engineInstaller;
 
         // "Appliquer" dans le panneau Conseiller mute Tier.Settings directement (pas via un
@@ -155,26 +154,10 @@ public sealed partial class ModelConfigurationViewModel : ObservableObject
                 SettingsChanged?.Invoke();
             }
 
-            var totalMoeLayers = 0;
-            var localPath = tier.LlamaCppSource?.LocalFilePath;
-            if (!string.IsNullOrWhiteSpace(localPath) && File.Exists(localPath))
-            {
-                try
-                {
-                    totalMoeLayers = _ggufReader.Read(localPath).MoeLayers.Count();
-                }
-                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
-                {
-                    // Non bloquant : le lancement peut se faire sans le placement MoE précis
-                    // (--n-cpu-moe/--override-tensor seront simplement absents des arguments).
-                }
-            }
-
             LlamaCppLaunchSettings settings;
             try
             {
-                settings = LlamaCppLaunchSettingsFactory.FromTier(
-                    tier, config.LlamaCppServer.ExecutablePath, config.Preferences.HuggingFaceApiToken, totalMoeLayers);
+                settings = await _llamaCppLaunchPlanner.BuildAsync(tier, config);
             }
             catch (InvalidOperationException ex)
             {

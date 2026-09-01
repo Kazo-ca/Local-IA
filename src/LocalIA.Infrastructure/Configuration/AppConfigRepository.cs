@@ -1,13 +1,15 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CommunityToolkit.Mvvm.Messaging;
 using LocalIA.Core.Abstractions;
+using LocalIA.Core.Messaging;
 using LocalIA.Core.Models;
 using Microsoft.Extensions.Logging;
 
 namespace LocalIA.Infrastructure.Configuration;
 
-public sealed class AppConfigRepository(LegacyConfigImporter legacyImporter, ILogger<AppConfigRepository> logger) : IAppConfigRepository
+public sealed class AppConfigRepository(LegacyConfigImporter legacyImporter, IMessenger messenger, ILogger<AppConfigRepository> logger) : IAppConfigRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -134,5 +136,6 @@ public sealed class AppConfigRepository(LegacyConfigImporter legacyImporter, ILo
         }
 
         File.Move(tempPath, ConfigFilePath, overwrite: true);
+        messenger.Send(new AppConfigChangedMessage(config));
     }
 }

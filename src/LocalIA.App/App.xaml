@@ -23,6 +23,9 @@
         <converters:NullToCollapsedConverter x:Key="NullToCollapsedConverter" />
         <converters:FitVerdictToBrushConverter x:Key="FitVerdictToBrushConverter" />
         <converters:FitVerdictToLabelConverter x:Key="FitVerdictToLabelConverter" />
+        <converters:RouterStatusToBrushConverter x:Key="RouterStatusToBrushConverter" />
+        <converters:RouterStatusToLabelConverter x:Key="RouterStatusToLabelConverter" />
+        <converters:RouterLoadOutcomeToLabelConverter x:Key="RouterLoadOutcomeToLabelConverter" />
 
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
             <views:DashboardView />
@@ -44,6 +47,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RouterHistoryViewModel}">
+            <views:RouterHistoryView />
         </DataTemplate>
     </Application.Resources>
 </Application>

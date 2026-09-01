@@ -1,0 +1,132 @@
+<UserControl x:Class="LocalIA.App.Views.RouterHistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="1050">
+    <UserControl.Resources>
+        <Style x:Key="ColumnHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,8,0,2" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="Gray" />
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="Historique du routeur" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0" />
+            <Button Style="{StaticResource ActionButton}" Content="Copier" Command="{Binding CopyCommand}" />
+            <Button Style="{StaticResource ActionButton}" Content="Enregistrer sous..." Command="{Binding SaveCommand}" />
+            <Button Style="{StaticResource ActionButton}" Content="Vider" Command="{Binding ClearCommand}" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="3*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Liste des requêtes -->
+            <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                <TextBlock DockPanel.Dock="Top" Text="Requêtes" Style="{StaticResource ColumnHeader}" />
+                <TextBlock DockPanel.Dock="Top" Text="Aucune requête routée pour le moment — le routeur doit être activé et démarré (Tableau de bord) pour que des requêtes apparaissent ici."
+                           Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"
+                           Visibility="{Binding Entries.Count, Converter={StaticResource ZeroToVisibleConverter}}" />
+                <ListBox ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="50" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding StartedAt, StringFormat={}{0:HH:mm:ss}}" FontSize="11" Foreground="Gray" />
+                                <TextBlock Grid.Column="1" Text="{Binding ResolvedEngine, Converter={StaticResource EngineKindToLabelConverter}}" FontSize="11" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="2" Text="{Binding ResolvedModelId, TargetNullValue='(inconnu)'}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="3" Text="{Binding StatusCode}" FontSize="11" HorizontalAlignment="Right" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <!-- Détail de la requête sélectionnée -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                          Visibility="{Binding SelectedEntry, Converter={StaticResource NullToCollapsedConverter}}">
+                <StackPanel Margin="4,0,0,0">
+                    <TextBlock Text="Détail" Style="{StaticResource ColumnHeader}" />
+
+                    <TextBlock Text="Heure / méthode / chemin" Style="{StaticResource FieldLabel}" />
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="{Binding SelectedEntry.StartedAt, StringFormat={}{0:HH:mm:ss}}" />
+                        <Run Text=" — " />
+                        <Run Text="{Binding SelectedEntry.Method}" FontWeight="SemiBold" />
+                        <Run Text=" " />
+                        <Run Text="{Binding SelectedEntry.Path}" FontFamily="Consolas" />
+                    </TextBlock>
+
+                    <TextBlock Text="Modèle résolu" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="{Binding SelectedEntry.ResolvedModelId, TargetNullValue='(non résolu)'}" />
+
+                    <TextBlock Text="Profil / palier" Style="{StaticResource FieldLabel}" />
+                    <TextBlock>
+                        <Run Text="{Binding SelectedEntry.ResolvedProfileName, TargetNullValue='—'}" />
+                        <Run Text=" / " />
+                        <Run Text="{Binding SelectedEntry.ResolvedTierLabel, TargetNullValue='—'}" />
+                    </TextBlock>
+
+                    <TextBlock Text="Moteur" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="{Binding SelectedEntry.ResolvedEngine, Converter={StaticResource EngineKindToLabelConverter}}" />
+
+                    <TextBlock Text="Résultat de l'arbitrage" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Text="{Binding SelectedEntry.LoadOutcome, Converter={StaticResource RouterLoadOutcomeToLabelConverter}}" />
+
+                    <TextBlock Text="Code de statut / durée" Style="{StaticResource FieldLabel}" />
+                    <TextBlock>
+                        <Run Text="{Binding SelectedEntry.StatusCode}" FontWeight="SemiBold" />
+                        <Run Text=" · " />
+                        <Run Text="{Binding SelectedEntry.Duration.TotalMilliseconds, StringFormat={}{0:0} ms}" />
+                    </TextBlock>
+
+                    <TextBlock Text="Taille du corps (requête / réponse)" Style="{StaticResource FieldLabel}" />
+                    <TextBlock>
+                        <Run Text="{Binding SelectedEntry.RequestBodyBytes, StringFormat={}{0} o}" />
+                        <Run Text=" / " />
+                        <Run Text="{Binding SelectedEntry.ResponseBodyBytes, StringFormat={}{0} o}" />
+                    </TextBlock>
+
+                    <StackPanel Visibility="{Binding SelectedEntry.ErrorMessage, Converter={StaticResource NullToCollapsedConverter}}">
+                        <TextBlock Text="Erreur" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{Binding SelectedEntry.ErrorMessage}" Foreground="#7A1F1F" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding SelectedEntry.RequestBodyPreview, Converter={StaticResource NullToCollapsedConverter}}">
+                        <TextBlock Text="Aperçu du corps de la requête" Style="{StaticResource FieldLabel}" />
+                        <Border BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4" Margin="0,4,0,0">
+                            <TextBox Text="{Binding SelectedEntry.RequestBodyPreview, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
+                                     FontFamily="Consolas" FontSize="11" MaxHeight="300" Padding="8"
+                                     VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" />
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

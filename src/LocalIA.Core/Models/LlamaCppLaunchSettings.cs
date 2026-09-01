@@ -30,7 +30,6 @@ public static class LlamaCppLaunchSettingsFactory
     {
         var source = tier.LlamaCppSource;
         var args = new List<string>();
-        string modelLabel;
 
         if (!string.IsNullOrWhiteSpace(source?.LocalFilePath))
         {
@@ -41,14 +40,12 @@ public static class LlamaCppLaunchSettingsFactory
 
             args.Add("-m");
             args.Add(source.LocalFilePath);
-            modelLabel = source.LocalFilePath;
         }
         else if (!string.IsNullOrWhiteSpace(source?.HfRepoId))
         {
-            var repoRef = string.IsNullOrWhiteSpace(source.QuantHint) ? source.HfRepoId : $"{source.HfRepoId}:{source.QuantHint}";
+            var repoRef = ComputeModelLabel(tier)!;
             args.Add("-hf");
             args.Add(repoRef);
-            modelLabel = repoRef;
 
             if (!string.IsNullOrWhiteSpace(source.HfFile))
             {
@@ -72,8 +69,31 @@ public static class LlamaCppLaunchSettingsFactory
         return new LlamaCppLaunchSettings
         {
             ExecutablePath = executablePath,
-            ModelPath = modelLabel,
+            ModelPath = ComputeModelLabel(tier)!,
             Arguments = args,
         };
+    }
+
+    /// <summary>
+    /// Ce que le "CurrentModelPath" du gestionnaire de process llama.cpp vaudra si ce palier est
+    /// celui démarré (chemin local, ou "auteur/dépôt:quant" si résolu via -hf) — sans valider que
+    /// le fichier existe ni construire les arguments complets. Utilisé par le routeur pour savoir
+    /// si le palier demandé est déjà celui actuellement chargé, sans dupliquer StartAsync. Null si
+    /// le palier n'a aucune source configurée (ni fichier local, ni dépôt Hugging Face).
+    /// </summary>
+    public static string? ComputeModelLabel(ModelTier tier)
+    {
+        var source = tier.LlamaCppSource;
+        if (!string.IsNullOrWhiteSpace(source?.LocalFilePath))
+        {
+            return source.LocalFilePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(source?.HfRepoId))
+        {
+            return string.IsNullOrWhiteSpace(source.QuantHint) ? source.HfRepoId : $"{source.HfRepoId}:{source.QuantHint}";
+        }
+
+        return null;
     }
 }
