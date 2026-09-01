@@ -143,6 +143,64 @@
             <TextBlock Text="{Binding InstallStatusMessage}" Foreground="DarkOrange" TextWrapping="Wrap" Margin="0,0,0,8"
                        Visibility="{Binding InstallStatusMessage, Converter={StaticResource NullToCollapsedConverter}}" />
 
+            <!-- Routeur -->
+            <TextBlock Text="Routeur" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="12" Height="12" Margin="0,0,10,0" VerticalAlignment="Center"
+                                 Fill="{Binding RouterState, Converter={StaticResource RouterStatusToBrushConverter}}" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold">
+                                <Run Text="Endpoint routeur — " />
+                                <Run Text="{Binding RouterState, Converter={StaticResource RouterStatusToLabelConverter}}" />
+                            </TextBlock>
+                            <TextBlock FontSize="12" Foreground="Gray"
+                                       Visibility="{Binding RouterActivePort, Converter={StaticResource NullToCollapsedConverter}}">
+                                <Run Text="http://127.0.0.1:" />
+                                <Run Text="{Binding RouterActivePort, Mode=OneWay}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                    <WrapPanel Margin="0,8,0,0">
+                        <Button Style="{StaticResource ActionButton}" Content="Démarrer le routeur" Command="{Binding StartRouterCommand}" />
+                        <Button Style="{StaticResource DangerButton}" Content="Arrêter le routeur" Command="{Binding StopRouterCommand}" />
+                    </WrapPanel>
+                    <TextBlock Text="Configuration (hôte, port, délai de grâce...) dans Paramètres → onglet Routeur." FontSize="11" Foreground="Gray" Margin="0,4,0,0" />
+
+                    <TextBlock Margin="0,10,0,0" FontSize="12" Foreground="Gray">
+                        <Run Text="VRAM libre estimée : " />
+                        <Run Text="{Binding FreeVramBytes, Converter={StaticResource BytesToGigabytesConverter}, Mode=OneWay}" FontWeight="SemiBold" />
+                    </TextBlock>
+
+                    <ItemsControl ItemsSource="{Binding RouterTierLoads}" Margin="0,6,0,0"
+                                  Visibility="{Binding RouterTierLoads.Count, Converter={StaticResource CountToVisibleConverter}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="120" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Engine, Converter={StaticResource EngineKindToLabelConverter}}" FontSize="11" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" FontSize="11">
+                                        <Run Text="{Binding ProfileName}" />
+                                        <Run Text=" / " />
+                                        <Run Text="{Binding TierLabel}" />
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="2" FontSize="11" HorizontalAlignment="Right">
+                                        <Run Text="{Binding ActiveCount}" />
+                                        <Run Text=" active(s) / " />
+                                        <Run Text="{Binding Capacity, TargetNullValue='?'}" />
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <!-- Modèles chargés -->
             <TextBlock Text="Modèles actuellement en mémoire" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
             <Border Style="{StaticResource CardBorder}">

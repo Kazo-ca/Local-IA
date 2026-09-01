@@ -173,7 +173,7 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
 
         foreach (var (profile, tier) in EnumerateTiers(config, EngineKind.Ollama))
         {
-            if (tier.OllamaCustomModelName is not { Length: > 0 } id)
+            if (ModelIdentifier.GetId(tier) is not { } id)
             {
                 continue;
             }
@@ -200,9 +200,7 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
         var byId = new Dictionary<string, (ModelProfile Profile, ModelTier Tier)>();
         foreach (var (profile, tier) in EnumerateTiers(config, EngineKind.LlamaCpp))
         {
-            var id = tier.LlamaCppSource?.LocalFilePath is { } path
-                ? Path.GetFileNameWithoutExtension(path)
-                : tier.Label;
+            var id = ModelIdentifier.GetId(tier)!;
 
             if (byId.TryGetValue(id, out var existing))
             {

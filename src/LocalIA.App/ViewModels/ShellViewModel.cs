@@ -19,7 +19,8 @@ public sealed partial class ShellViewModel : ObservableObject
         ModelConfigurationViewModel modelConfigurationViewModel,
         MoeViewModel moeViewModel,
         HuggingFaceSearchViewModel huggingFaceSearchViewModel,
-        SettingsViewModel settingsViewModel)
+        SettingsViewModel settingsViewModel,
+        RouterHistoryViewModel routerHistoryViewModel)
     {
         navigationService.CurrentViewModelChanged += vm => CurrentPageViewModel = vm;
 
@@ -31,6 +32,7 @@ public sealed partial class ShellViewModel : ObservableObject
             new NavigationItemViewModel("Configuration du modèle", modelConfigurationViewModel, navigationService),
             new NavigationItemViewModel("MoE", moeViewModel, navigationService),
             new NavigationItemViewModel("Recherche Hugging Face", huggingFaceSearchViewModel, navigationService),
+            new NavigationItemViewModel("Historique du routeur", routerHistoryViewModel, navigationService),
             new NavigationItemViewModel("Paramètres", settingsViewModel, navigationService),
         ];
 

@@ -9,6 +9,7 @@ using LocalIA.Infrastructure.Configuration;
 using LocalIA.Infrastructure.Engines;
 using LocalIA.Infrastructure.Hardware;
 using LocalIA.Infrastructure.HuggingFace;
+using LocalIA.Infrastructure.Router;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -55,6 +56,7 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddSingleton<IOllamaProcessManager, OllamaProcessManager>();
         services.AddSingleton<ILlamaCppProcessManager, LlamaCppProcessManager>();
+        services.AddSingleton<ILlamaCppLaunchPlanner, LlamaCppLaunchPlanner>();
         services.AddSingleton<IEngineOrchestrationService, EngineOrchestrationService>();
         services.AddSingleton<IEngineInstaller, EngineInstaller>();
         services.AddSingleton<IAutostartService, AutostartService>();
@@ -81,6 +83,15 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<HardwareMonitoringService>();
         services.AddSingleton<IHardwareMonitorService>(sp => sp.GetRequiredService<HardwareMonitoringService>());
         services.AddHostedService(sp => sp.GetRequiredService<HardwareMonitoringService>());
+
+        services.AddSingleton<IRouterService, RouterService>();
+        services.AddHostedService<RouterAutoStartHostedService>();
+        services.AddSingleton<IRouterModelResolver, RouterModelResolver>();
+        services.AddSingleton<IRouterConnectionTracker, RouterConnectionTracker>();
+        services.AddSingleton<IRouterResourceEstimator, RouterResourceEstimator>();
+        services.AddSingleton<IRouterResourceArbiter, RouterResourceArbiter>();
+        services.AddHostedService<RouterIdleUnloadSweepHostedService>();
+        services.AddSingleton<IRouterRequestHistoryStore, RouterRequestHistoryStore>();
 
         return services;
     }

@@ -10,6 +10,7 @@ public sealed class AppConfig
     public StorageSettings Storage { get; set; } = new();
     public OllamaServerSettings OllamaServer { get; set; } = new();
     public LlamaCppServerSettings LlamaCppServer { get; set; } = new();
+    public RouterSettings Router { get; set; } = new();
     public List<ModelProfile> Profiles { get; set; } = [];
     public AppPreferences Preferences { get; set; } = new();
 }
@@ -38,4 +39,14 @@ public sealed class AppPreferences
 {
     public bool StopEnginesOnExit { get; set; }
     public string? HuggingFaceApiToken { get; set; }
+}
+
+public sealed class RouterSettings
+{
+    public bool Enabled { get; set; }
+    public string Host { get; set; } = "127.0.0.1";
+    public int Port { get; set; } = 11500;
+    public int IdleUnloadGraceSeconds { get; set; } = 300;
+    public int MaxHistoryEntries { get; set; } = 500;
+    public long VramSafetyMarginBytes { get; set; } = 1024L * 1024 * 1024;
 }
