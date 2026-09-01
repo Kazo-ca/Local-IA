@@ -81,14 +81,25 @@ public sealed class RouterService(IServiceProvider outerServices, ILogger<Router
             {
                 await app.StartAsync(ct);
             }
-            catch (Exception ex) when (ex is IOException or SocketException)
+            catch (Exception ex)
             {
-                logger.LogWarning(
-                    ex, "Échec du démarrage du routeur sur {Host}:{Port} — le port est peut-être déjà utilisé.",
-                    settings.Host, settings.Port);
+                // Toujours disposer le WebApplication déjà construit (et potentiellement déjà lié
+                // au port) avant de sortir — sinon toute exception hors IOException/SocketException
+                // (ex. OperationCanceledException si l'hôte se ferme pendant un démarrage lent) le
+                // fuite, puisque _app n'est assigné qu'après un démarrage réussi.
                 await app.DisposeAsync();
-                SetStatus(RouterStatus.Error, null);
-                return false;
+
+                if (ex is IOException or SocketException)
+                {
+                    logger.LogWarning(
+                        ex, "Échec du démarrage du routeur sur {Host}:{Port} — le port est peut-être déjà utilisé.",
+                        settings.Host, settings.Port);
+                    SetStatus(RouterStatus.Error, null);
+                    return false;
+                }
+
+                SetStatus(RouterStatus.Stopped, null);
+                throw;
             }
 
             _app = app;
@@ -115,6 +126,13 @@ public sealed class RouterService(IServiceProvider outerServices, ILogger<Router
             try
             {
                 await _app.StopAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                // Ne pas laisser Status bloqué sur "Stopping" indéfiniment (ex. délai d'arrêt de
+                // Kestrel écoulé pendant qu'une connexion en streaming se termine) — le process est
+                // de toute façon disposé juste après, donc autant refléter l'état réel.
+                logger.LogWarning(ex, "Échec de l'arrêt propre du routeur — le process est tout de même disposé.");
             }
             finally
             {

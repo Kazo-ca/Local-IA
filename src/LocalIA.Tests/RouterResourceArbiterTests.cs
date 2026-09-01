@@ -419,10 +419,10 @@ public class RouterResourceArbiterTests
         public Task<IReadOnlyList<OllamaTagInfo>> ListTagsAsync(CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<OllamaTagInfo>>(Tags);
 
-        public Task<IReadOnlyList<OllamaRunningModelInfo>> ListRunningModelsAsync(CancellationToken ct = default) =>
+        public Task<IReadOnlyList<OllamaRunningModelInfo>> ListRunningModelsAsync(CancellationToken ct = default, string? hostOverride = null) =>
             Task.FromResult<IReadOnlyList<OllamaRunningModelInfo>>(Running);
 
-        public Task<bool> UnloadModelAsync(string modelName, CancellationToken ct = default)
+        public Task<bool> UnloadModelAsync(string modelName, CancellationToken ct = default, string? hostOverride = null)
         {
             UnloadedModels.Add(modelName);
             Running.RemoveAll(m => m.Name == modelName);

@@ -159,9 +159,6 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
         ["models"] = models,
     };
 
-    // Contexte par défaut de llama.cpp/Ollama quand ContextSize n'est pas explicitement configuré
-    // sur le palier (correspond à leur propre valeur par défaut, pas une invention de LOCAL-IA).
-    private const int DefaultContextSize = 4096;
     private const int DefaultMaxOutputTokens = 8192;
 
     private JsonArray BuildOllamaModels(AppConfig config)
@@ -204,8 +201,8 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
 
             if (byId.TryGetValue(id, out var existing))
             {
-                var keepExisting = (existing.Tier.Settings.ContextMemory.ContextSize ?? DefaultContextSize)
-                    >= (tier.Settings.ContextMemory.ContextSize ?? DefaultContextSize);
+                var keepExisting = (existing.Tier.Settings.ContextMemory.ContextSize ?? ModelIdentifier.DefaultContextSize)
+                    >= (tier.Settings.ContextMemory.ContextSize ?? ModelIdentifier.DefaultContextSize);
                 logger.LogWarning(
                     "Paliers en doublon pour {Id} : « {Profile1}/{Tier1} » (contexte {Context1}) vs « {Profile2}/{Tier2} » (contexte {Context2}) — {Kept} conservé pour chatLanguageModels.json.",
                     id, existing.Profile.Name, existing.Tier.Label, existing.Tier.Settings.ContextMemory.ContextSize,
@@ -238,8 +235,8 @@ public sealed class VsCodeConfigurationService(ILogger<VsCodeConfigurationServic
         ["url"] = url,
         ["toolCalling"] = toolCalling,
         ["vision"] = false,
-        ["maxInputTokens"] = contextSize ?? DefaultContextSize,
-        ["maxOutputTokens"] = Math.Min(contextSize ?? DefaultContextSize, DefaultMaxOutputTokens),
+        ["maxInputTokens"] = contextSize ?? ModelIdentifier.DefaultContextSize,
+        ["maxOutputTokens"] = Math.Min(contextSize ?? ModelIdentifier.DefaultContextSize, DefaultMaxOutputTokens),
     };
 
     private static IEnumerable<(ModelProfile Profile, ModelTier Tier)> EnumerateTiers(AppConfig config, EngineKind engine) =>

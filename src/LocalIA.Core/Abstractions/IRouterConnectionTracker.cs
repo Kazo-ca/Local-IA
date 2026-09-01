@@ -32,5 +32,16 @@ public interface IRouterConnectionTracker
     /// </summary>
     bool TryBeginEviction(Guid tierId, TimeSpan minIdleDuration);
 
+    /// <summary>
+    /// Marque un palier "éviction en cours" sans les vérifications de <see cref="TryBeginEviction"/>
+    /// (connexions actives, éviction déjà en cours) — pour le seul cas où l'utilisateur a
+    /// explicitement choisi, via la boîte de dialogue de conflit, de libérer un palier occupé.
+    /// Sans marquage, le balayage d'inactivité ou une éviction automatique concurrente pourrait
+    /// agir sur le même palier pendant que ce déchargement forcé est en cours. Ne fait rien si le
+    /// palier n'est pas suivi (jamais chargé par le routeur) — l'appelant DOIT quand même appeler
+    /// <see cref="EndEviction"/> dans un `finally`.
+    /// </summary>
+    void ForceBeginEviction(Guid tierId);
+
     void EndEviction(Guid tierId);
 }

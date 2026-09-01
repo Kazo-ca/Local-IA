@@ -15,7 +15,7 @@ public sealed class RouterConflictPrompter : IRouterConflictPrompter
 {
     public Task<RouterConflictResolution> PromptAsync(RouterConflictContext context, CancellationToken ct = default)
     {
-        var tcs = new TaskCompletionSource<RouterConflictResolution>();
+        var tcs = new TaskCompletionSource<RouterConflictResolution>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Pas de timeout en v1 (utilisateur local unique, assis devant la machine) — si la requête
         // entrante est annulée pendant que la boîte de dialogue est ouverte, au moins résoudre la
@@ -23,16 +23,32 @@ public sealed class RouterConflictPrompter : IRouterConflictPrompter
         // ouverte tant que l'utilisateur n'a pas cliqué (limitation documentée).
         ct.Register(() => tcs.TrySetResult(RouterConflictResolution.CancelIncoming));
 
-        Application.Current.Dispatcher.BeginInvoke(() =>
+        var app = Application.Current;
+        if (app is null)
         {
-            var window = new RouterConflictWindow(context);
-            if (Application.Current.MainWindow is { IsVisible: true } mainWindow)
-            {
-                window.Owner = mainWindow;
-            }
+            tcs.TrySetResult(RouterConflictResolution.CancelIncoming);
+            return tcs.Task;
+        }
 
-            window.ShowDialog();
-            tcs.TrySetResult(window.Resolution);
+        app.Dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                var window = new RouterConflictWindow(context);
+                if (Application.Current?.MainWindow is { IsVisible: true } mainWindow)
+                {
+                    window.Owner = mainWindow;
+                }
+
+                window.ShowDialog();
+                tcs.TrySetResult(window.Resolution);
+            }
+            catch
+            {
+                // Fenêtre indisponible (p. ex. fermeture de l'application en cours) : ne pas bloquer
+                // indéfiniment l'arbitre, annuler la requête entrante comme pour un timeout/annulation.
+                tcs.TrySetResult(RouterConflictResolution.CancelIncoming);
+            }
         });
 
         return tcs.Task;

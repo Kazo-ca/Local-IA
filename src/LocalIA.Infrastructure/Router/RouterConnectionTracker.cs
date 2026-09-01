@@ -112,6 +112,19 @@ public sealed class RouterConnectionTracker : IRouterConnectionTracker
         }
     }
 
+    public void ForceBeginEviction(Guid tierId)
+    {
+        if (!_states.TryGetValue(tierId, out var state))
+        {
+            return;
+        }
+
+        lock (state)
+        {
+            state.UnloadInProgress = true;
+        }
+    }
+
     public void EndEviction(Guid tierId)
     {
         if (!_states.TryGetValue(tierId, out var state))

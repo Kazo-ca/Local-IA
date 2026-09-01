@@ -43,8 +43,8 @@ public static class RouterModelIndexBuilder
                     // Même tie-break que VsCodeConfigurationService.BuildLlamaCppModels : garder le
                     // palier au plus grand contexte configuré est le choix le moins susceptible de
                     // sous-annoncer la vraie capacité, et on journalise le doublon écarté.
-                    var existingContext = existing.Tier.Settings.ContextMemory.ContextSize ?? 0;
-                    var newContext = tier.Settings.ContextMemory.ContextSize ?? 0;
+                    var existingContext = existing.Tier.Settings.ContextMemory.ContextSize ?? ModelIdentifier.DefaultContextSize;
+                    var newContext = tier.Settings.ContextMemory.ContextSize ?? ModelIdentifier.DefaultContextSize;
                     if (newContext <= existingContext)
                     {
                         logger.LogWarning(

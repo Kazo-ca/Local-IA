@@ -18,6 +18,7 @@ public sealed class RouterModelResolver : IRouterModelResolver, IRecipient<AppCo
     private readonly ILogger<RouterModelResolver> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private IReadOnlyDictionary<string, RouterModelResolution>? _cachedIndex;
+    private long _generation;
 
     public RouterModelResolver(IAppConfigRepository configRepository, IMessenger messenger, ILogger<RouterModelResolver> logger)
     {
@@ -26,7 +27,11 @@ public sealed class RouterModelResolver : IRouterModelResolver, IRecipient<AppCo
         messenger.RegisterAll(this);
     }
 
-    public void Receive(AppConfigChangedMessage message) => _cachedIndex = null;
+    public void Receive(AppConfigChangedMessage message)
+    {
+        Interlocked.Increment(ref _generation);
+        _cachedIndex = null;
+    }
 
     public async Task<RouterModelResolution?> ResolveAsync(string modelId, CancellationToken ct = default)
     {
@@ -49,9 +54,19 @@ public sealed class RouterModelResolver : IRouterModelResolver, IRecipient<AppCo
                 return stillCached;
             }
 
+            var generation = Interlocked.Read(ref _generation);
             var config = await _configRepository.LoadAsync(ct);
             var index = RouterModelIndexBuilder.Build(config, _logger);
-            _cachedIndex = index;
+
+            // Si une invalidation (édition de profil) est arrivée pendant ce rechargement, ne pas
+            // mettre en cache un résultat déjà périmé — sinon il y resterait indéfiniment jusqu'à
+            // une invalidation ultérieure sans rapport. Le prochain appel reconstruira à partir de
+            // la config la plus récente.
+            if (Interlocked.Read(ref _generation) == generation)
+            {
+                _cachedIndex = index;
+            }
+
             return index;
         }
         finally

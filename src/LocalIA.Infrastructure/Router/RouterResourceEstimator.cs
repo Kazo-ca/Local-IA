@@ -1,6 +1,8 @@
 using LocalIA.Core.Abstractions;
+using LocalIA.Core.Configuration;
 using LocalIA.Core.Gguf;
 using LocalIA.Core.Models;
+using LocalIA.Core.MoeOffload;
 using Microsoft.Extensions.Logging;
 
 namespace LocalIA.Infrastructure.Router;
@@ -8,11 +10,14 @@ namespace LocalIA.Infrastructure.Router;
 public sealed class RouterResourceEstimator(IOllamaApiClient ollamaApiClient, IGgufMetadataReader ggufReader, ILogger<RouterResourceEstimator> logger)
     : IRouterResourceEstimator
 {
-    // Marge forfaitaire pour le cache KV/activations, qui ne sont pas dans la taille du fichier
-    // sur disque — approximation volontairement simple pour une décision d'admission rapide (le
-    // conseiller MoE calcule un placement précis par couche pour un besoin différent : configurer
-    // le déchargement CPU/GPU d'un palier, pas arbitrer entre plusieurs modèles en mémoire).
-    private const double LlamaCppKvCacheOverheadFactor = 1.15;
+    // Marge forfaitaire pour les activations/buffers de calcul, qui ne sont pas dans la taille du
+    // fichier sur disque — approximation volontairement simple pour une décision d'admission
+    // rapide. Le cache KV, lui, est calculé via la formule partagée MoeVramCalculator.
+    // EstimateKvCacheBytes plutôt qu'englobé dans ce facteur forfaitaire : sa taille dépend
+    // fortement du contexte configuré (plusieurs Go de plus sur un contexte 32K-128K), un facteur
+    // constant sous-estimerait alors l'empreinte réelle et laisserait l'arbitre admettre un modèle
+    // que ce même calcul, ailleurs dans l'app, refuserait à juste titre.
+    private const double LlamaCppActivationsOverheadFactor = 1.05;
 
     public async Task<long?> EstimateVramBytesAsync(ModelTier tier, CancellationToken ct = default)
     {
@@ -51,7 +56,14 @@ public sealed class RouterResourceEstimator(IOllamaApiClient ollamaApiClient, IG
         try
         {
             var metadata = ggufReader.Read(path);
-            return (long)(metadata.TotalFileSizeBytes * LlamaCppKvCacheOverheadFactor);
+            var contextMemory = tier.Settings.ContextMemory;
+            var kvCacheBytes = MoeVramCalculator.EstimateKvCacheBytes(
+                metadata,
+                contextMemory.ContextSize ?? ModelIdentifier.DefaultContextSize,
+                contextMemory.CacheTypeK ?? CacheQuantType.F16,
+                contextMemory.CacheTypeV ?? CacheQuantType.F16);
+
+            return (long)(metadata.TotalFileSizeBytes * LlamaCppActivationsOverheadFactor) + kvCacheBytes;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {

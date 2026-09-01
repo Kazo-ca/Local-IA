@@ -41,11 +41,12 @@ public sealed class OllamaApiClient(HttpClient httpClient, IHttpClientFactory ht
         }
     }
 
-    public async Task<IReadOnlyList<OllamaRunningModelInfo>> ListRunningModelsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<OllamaRunningModelInfo>> ListRunningModelsAsync(CancellationToken ct = default, string? hostOverride = null)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<PsResponse>("api/ps", ct);
+            var uri = BuildRequestUri("api/ps", hostOverride);
+            var response = await httpClient.GetFromJsonAsync<PsResponse>(uri, ct);
             return response?.Models
                 .Select(m => new OllamaRunningModelInfo(m.Name, m.Size, m.SizeVram, m.ExpiresAt))
                 .ToList() ?? [];
@@ -56,7 +57,10 @@ public sealed class OllamaApiClient(HttpClient httpClient, IHttpClientFactory ht
         }
     }
 
-    public async Task<bool> UnloadModelAsync(string modelName, CancellationToken ct = default)
+    private static Uri BuildRequestUri(string relativePath, string? hostOverride) =>
+        hostOverride is { Length: > 0 } ? new Uri($"http://{hostOverride}/{relativePath}") : new Uri(relativePath, UriKind.Relative);
+
+    public async Task<bool> UnloadModelAsync(string modelName, CancellationToken ct = default, string? hostOverride = null)
     {
         // Passe par la CLI (`ollama stop`) plutôt que par /api/generate avec keep_alive=0 :
         // l'encodage exact attendu par l'API pour "décharger immédiatement" varie selon les
@@ -69,6 +73,13 @@ public sealed class OllamaApiClient(HttpClient httpClient, IHttpClientFactory ht
                 CreateNoWindow = true,
                 ArgumentList = { "stop", modelName },
             };
+
+            if (hostOverride is { Length: > 0 })
+            {
+                // Sans ceci, `ollama stop` cible toujours l'instance par défaut (127.0.0.1:11434)
+                // même si l'instance réellement configurée tourne sur un autre hôte/port.
+                startInfo.Environment["OLLAMA_HOST"] = hostOverride;
+            }
 
             using var process = Process.Start(startInfo);
             if (process is null)

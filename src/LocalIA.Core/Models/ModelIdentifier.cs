@@ -8,6 +8,14 @@ namespace LocalIA.Core.Models;
 public static class ModelIdentifier
 {
     /// <summary>
+    /// Contexte par défaut de llama.cpp/Ollama quand <c>ContextMemory.ContextSize</c> n'est pas
+    /// explicite sur le palier (correspond à leur propre valeur par défaut). Partagé entre le
+    /// routeur et la sync VS Code pour qu'ils ne divergent pas sur le tie-break des paliers en
+    /// doublon.
+    /// </summary>
+    public const int DefaultContextSize = 4096;
+
+    /// <summary>
     /// Ollama : uniquement <see cref="ModelTier.OllamaCustomModelName"/> — c'est l'alias créé
     /// spécifiquement pour ce palier (system prompt, réglages...) ; contrairement à
     /// <see cref="ModelTier.OllamaBaseModel"/>, qui peut être partagé par plusieurs paliers, il

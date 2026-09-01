@@ -61,7 +61,8 @@ public sealed class RouterRequestPipeline(
 
         try
         {
-            var (urlModelId, remainderPath) = RouterPathParser.Parse(path);
+            var index = await resolver.GetIndexAsync(ct);
+            var (urlModelId, remainderPath) = RouterPathParser.Parse(path, index.Keys);
 
             var readBody = await ReadBodyAsync(context, ct);
             if (readBody is null)
@@ -83,7 +84,7 @@ public sealed class RouterRequestPipeline(
                 return;
             }
 
-            resolution = await resolver.ResolveAsync(modelId, ct);
+            resolution = index.TryGetValue(modelId, out var resolved) ? resolved : null;
             if (resolution is null)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -129,7 +130,13 @@ public sealed class RouterRequestPipeline(
             {
                 responseBytes = await ForwardAsync(context, resolution, remainderPath, body, ct);
             }
-            catch (HttpRequestException ex)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Client déconnecté en cours de streaming — rien à renvoyer, juste consigner l'échec
+                // réel dans l'historique plutôt qu'un succès trompeur.
+                errorMessage = "Requête annulée par le client.";
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException)
             {
                 logger.LogWarning(ex, "Échec de la transmission au moteur pour « {ModelId} ».", modelId);
                 errorMessage = "Le moteur cible n'a pas répondu.";
@@ -138,6 +145,16 @@ public sealed class RouterRequestPipeline(
                     context.Response.StatusCode = StatusCodes.Status502BadGateway;
                     await WriteJsonErrorAsync(context, errorMessage, ct);
                 }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erreur inattendue lors du traitement de la requête du routeur pour « {Path} ».", path);
+            errorMessage = "Erreur interne du routeur.";
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await WriteJsonErrorAsync(context, errorMessage, ct);
             }
         }
         finally
@@ -189,6 +206,16 @@ public sealed class RouterRequestPipeline(
             }
 
             requestMessage.Headers.TryAddWithoutValidation(header.Key, (IEnumerable<string?>)header.Value);
+        }
+
+        // Proxy transparent : si le palier llama.cpp cible a été lancé avec --api-key, le serveur
+        // exige un Authorization: Bearer <clé> qu'un client appelant par id de modèle n'a aucun
+        // moyen de connaître — l'injecter nous-mêmes plutôt que de laisser passer un 401 muet.
+        if (resolution.Engine == EngineKind.LlamaCpp
+            && resolution.Tier.Settings.ServerNetworking.ApiKey is { Length: > 0 } apiKey
+            && !requestMessage.Headers.Contains("Authorization"))
+        {
+            requestMessage.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
         }
 
         var client = httpClientFactory.CreateClient(RouterForwardClientName);

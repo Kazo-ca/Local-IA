@@ -32,17 +32,33 @@ public sealed class RouterResourceArbiter(
     ILogger<RouterResourceArbiter> logger)
     : IRouterResourceArbiter
 {
+    // Verrou global d'admission : sans lui, deux requêtes concurrentes pour deux modèles différents
+    // liraient chacune la même empreinte VRAM libre, concluraient toutes les deux "ça tient", et
+    // charger jointement plus que la VRAM réellement disponible — défaisant la garantie de sécurité
+    // que cette classe existe pour fournir. Sérialise donc toute la décision d'admission (lecture
+    // VRAM, éviction, lancement du process), pas seulement la lecture initiale.
+    private readonly SemaphoreSlim _admissionGate = new(1, 1);
+
     public async Task<RouterLoadResult> EnsureLoadedAsync(RouterModelResolution resolution, CancellationToken ct = default)
     {
         var config = await configRepository.LoadAsync(ct);
-        return resolution.Engine == EngineKind.Ollama
-            ? await EnsureOllamaLoadedAsync(resolution, config, ct)
-            : await EnsureLlamaCppLoadedAsync(resolution, config, ct);
+
+        await _admissionGate.WaitAsync(ct);
+        try
+        {
+            return resolution.Engine == EngineKind.Ollama
+                ? await EnsureOllamaLoadedAsync(resolution, config, ct)
+                : await EnsureLlamaCppLoadedAsync(resolution, config, ct);
+        }
+        finally
+        {
+            _admissionGate.Release();
+        }
     }
 
     private async Task<RouterLoadResult> EnsureOllamaLoadedAsync(RouterModelResolution resolution, AppConfig config, CancellationToken ct)
     {
-        var running = await ollamaApiClient.ListRunningModelsAsync(ct);
+        var running = await ollamaApiClient.ListRunningModelsAsync(ct, config.OllamaServer.Host);
         var alreadyLoaded = running.Any(m => string.Equals(m.Name, resolution.ModelId, StringComparison.OrdinalIgnoreCase));
 
         var outcome = RouterLoadOutcome.Loaded;
@@ -92,11 +108,22 @@ public sealed class RouterResourceArbiter(
 
         var outcome = RouterLoadOutcome.Loaded;
 
+        // Palier évincé pour libérer l'instance unique llama.cpp, à restaurer si une étape
+        // suivante échoue (VRAM insuffisante et annulation, plan de lancement invalide, ou échec
+        // du démarrage du nouveau modèle) — sinon llama.cpp ne sert plus rien là où ce palier
+        // fonctionnait auparavant.
+        RouterModelResolution? evictedResolution = null;
+
         // Contrainte dure : un seul processus/modèle à la fois côté llama.cpp, indépendamment de
         // la VRAM disponible (LlamaCppProcessManager.StartAsync refuserait de toute façon).
         if (currentLabel is not null)
         {
-            var (proceed, cancelResult) = await EnsureLlamaCppSlotFreeAsync(resolution, currentLabel, ct);
+            var index = await resolver.GetIndexAsync(ct);
+            evictedResolution = LlamaCppTierLookup.FindLoadedTierId(currentLabel, index) is { } previousTierId
+                ? index.Values.FirstOrDefault(r => r.Tier.Id == previousTierId)
+                : null;
+
+            var (proceed, cancelResult) = await EnsureLlamaCppSlotFreeAsync(resolution, currentLabel, index, ct);
             if (!proceed)
             {
                 return cancelResult!;
@@ -110,6 +137,7 @@ public sealed class RouterResourceArbiter(
         var (roomOutcome, roomError) = await EnsureVramRoomAsync(resolution, config, ct);
         if (roomOutcome is RouterLoadOutcome.ConflictCancelled)
         {
+            await TryRestorePreviousLlamaCppModelAsync(evictedResolution, config);
             return new RouterLoadResult(RouterLoadOutcome.ConflictCancelled, roomError);
         }
 
@@ -125,16 +153,51 @@ public sealed class RouterResourceArbiter(
         }
         catch (InvalidOperationException ex)
         {
+            await TryRestorePreviousLlamaCppModelAsync(evictedResolution, config);
             return new RouterLoadResult(RouterLoadOutcome.Failed, ex.Message);
         }
 
         var started = await llamaCppProcessManager.StartAsync(settings, ct);
         if (!started)
         {
+            await TryRestorePreviousLlamaCppModelAsync(evictedResolution, config);
             return new RouterLoadResult(RouterLoadOutcome.Failed, "Échec du démarrage de llama-server.");
         }
 
         return new RouterLoadResult(outcome);
+    }
+
+    /// <summary>
+    /// Best-effort : recharge le palier llama.cpp qui vient d'être évincé pour faire de la place à
+    /// une cible dont le chargement a finalement échoué — sinon llama.cpp reste vide là où ce
+    /// palier fonctionnait avant la requête. Utilise <see cref="CancellationToken.None"/> (pas le
+    /// jeton de la requête entrante, potentiellement déjà annulé/écoulé) : un client parti ne doit
+    /// pas empêcher de restaurer l'état du moteur pour les requêtes suivantes.
+    /// </summary>
+    private async Task TryRestorePreviousLlamaCppModelAsync(RouterModelResolution? previous, AppConfig config)
+    {
+        if (previous is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = await llamaCppLaunchPlanner.BuildAsync(previous.Tier, config, CancellationToken.None);
+            var restarted = await llamaCppProcessManager.StartAsync(settings, CancellationToken.None);
+            if (!restarted)
+            {
+                logger.LogWarning(
+                    "Échec de la restauration du palier « {Profile}/{Tier} » évincé après l'échec du chargement d'un autre modèle.",
+                    previous.Profile.Name, previous.Tier.Label);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            logger.LogWarning(ex,
+                "Échec de la restauration du palier « {Profile}/{Tier} » évincé après l'échec du chargement d'un autre modèle.",
+                previous.Profile.Name, previous.Tier.Label);
+        }
     }
 
     /// <summary>
@@ -143,9 +206,8 @@ public sealed class RouterResourceArbiter(
     /// chargé hors routeur), l'utilisateur est sollicité via <see cref="IRouterConflictPrompter"/>.
     /// </summary>
     private async Task<(bool Proceed, RouterLoadResult? CancelResult)> EnsureLlamaCppSlotFreeAsync(
-        RouterModelResolution target, string currentLabel, CancellationToken ct)
+        RouterModelResolution target, string currentLabel, IReadOnlyDictionary<string, RouterModelResolution> index, CancellationToken ct)
     {
-        var index = await resolver.GetIndexAsync(ct);
         var currentTierId = LlamaCppTierLookup.FindLoadedTierId(currentLabel, index);
 
         if (currentTierId is { } tierId && tracker.TryBeginEviction(tierId, TimeSpan.Zero))
@@ -174,7 +236,26 @@ public sealed class RouterResourceArbiter(
             return (false, new RouterLoadResult(RouterLoadOutcome.ConflictCancelled, "Un autre modèle llama.cpp est en cours d'utilisation."));
         }
 
-        await llamaCppProcessManager.StopAsync(ct);
+        // L'utilisateur a choisi de libérer un palier occupé : marquer l'éviction en cours malgré
+        // les connexions actives (TryBeginEviction refuserait), pour que le balayage d'inactivité
+        // ou une éviction automatique concurrente ne touche pas à ce palier pendant l'opération.
+        if (currentTierId is { } forcedTierId)
+        {
+            tracker.ForceBeginEviction(forcedTierId);
+            try
+            {
+                await llamaCppProcessManager.StopAsync(ct);
+            }
+            finally
+            {
+                tracker.EndEviction(forcedTierId);
+            }
+        }
+        else
+        {
+            await llamaCppProcessManager.StopAsync(ct);
+        }
+
         return (true, null);
     }
 
@@ -202,7 +283,7 @@ public sealed class RouterResourceArbiter(
         }
 
         var index = await resolver.GetIndexAsync(ct);
-        var candidates = await GetLoadedCandidatesAsync(target.Tier.Id, index, ct);
+        var candidates = await GetLoadedCandidatesAsync(target.Tier.Id, index, config.OllamaServer.Host, ct);
         candidates.Sort((a, b) =>
             (tracker.GetLastActivityAt(a.TierId) ?? DateTimeOffset.MinValue)
             .CompareTo(tracker.GetLastActivityAt(b.TierId) ?? DateTimeOffset.MinValue));
@@ -224,7 +305,7 @@ public sealed class RouterResourceArbiter(
 
             try
             {
-                var freed = await EvictAsync(candidateResolution, ct);
+                var freed = await EvictAsync(candidateResolution, config.OllamaServer.Host, ct);
                 if (freed)
                 {
                     var candidateFootprint = await estimator.EstimateVramBytesAsync(candidateResolution.Tier, ct) ?? 0;
@@ -254,25 +335,37 @@ public sealed class RouterResourceArbiter(
             return (RouterLoadOutcome.ConflictCancelled, "VRAM insuffisante et l'utilisateur a annulé la requête entrante.");
         }
 
+        // L'utilisateur a choisi de libérer ces paliers occupés malgré le conflit : marquer
+        // l'éviction en cours (TryBeginEviction refuserait à cause des connexions actives) pour
+        // que le balayage d'inactivité ou une éviction automatique concurrente ne les touche pas
+        // pendant l'opération.
         foreach (var blocker in blockers)
         {
-            await EvictAsync(blocker, ct);
+            tracker.ForceBeginEviction(blocker.Tier.Id);
+            try
+            {
+                await EvictAsync(blocker, config.OllamaServer.Host, ct);
+            }
+            finally
+            {
+                tracker.EndEviction(blocker.Tier.Id);
+            }
         }
 
         return (RouterLoadOutcome.ConflictDropped, null);
     }
 
-    private Task<bool> EvictAsync(RouterModelResolution resolution, CancellationToken ct) =>
+    private Task<bool> EvictAsync(RouterModelResolution resolution, string ollamaHost, CancellationToken ct) =>
         resolution.Engine == EngineKind.Ollama
-            ? ollamaApiClient.UnloadModelAsync(resolution.ModelId, ct)
+            ? ollamaApiClient.UnloadModelAsync(resolution.ModelId, ct, ollamaHost)
             : llamaCppProcessManager.StopAsync(ct);
 
     private async Task<List<(Guid TierId, RouterModelResolution Resolution)>> GetLoadedCandidatesAsync(
-        Guid excludeTierId, IReadOnlyDictionary<string, RouterModelResolution> index, CancellationToken ct)
+        Guid excludeTierId, IReadOnlyDictionary<string, RouterModelResolution> index, string ollamaHost, CancellationToken ct)
     {
         var candidates = new List<(Guid, RouterModelResolution)>();
 
-        var running = await ollamaApiClient.ListRunningModelsAsync(ct);
+        var running = await ollamaApiClient.ListRunningModelsAsync(ct, ollamaHost);
         foreach (var model in running)
         {
             if (index.TryGetValue(model.Name, out var resolution) && resolution.Tier.Id != excludeTierId)
